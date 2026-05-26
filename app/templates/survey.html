@@ -4,184 +4,145 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>שאלון - דוח הקהילה</title>
-    <link rel="icon" type="image/png" href="https://gate.roleplay.top/rpg-game.png">
     <style>
-        body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #f8f9fa; color: #333; margin:0; padding:20px;}
-        .survey-container { max-width: 800px; margin: 0 auto; background: #fff; padding: 40px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        h2 { color: #2c3e50; border-bottom: 2px solid #e74c3c; padding-bottom: 10px; margin-top: 0; font-size: 1.8em;}
-        .form-group { margin-bottom: 30px; background: #fdfdfd; padding: 15px; border-radius: 6px; border: 1px solid #eee;}
-        label.question-title { font-weight: bold; display: block; margin-bottom: 15px; font-size: 1.1em; color: #2c3e50;}
-        input[type="text"], input[type="date"], select, textarea { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-family: inherit;}
-        .options-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; }
-        .options-grid label { display: flex; align-items: center; font-weight: normal; margin: 0; cursor: pointer; padding: 8px; border-radius: 4px; transition: background 0.2s;}
-        .options-grid label:hover { background: #f1f2f6; }
-        .options-grid input { margin-left: 10px; }
-        .btn { background-color: #e74c3c; color: white; border: none; padding: 15px 30px; font-size: 18px; border-radius: 6px; cursor: pointer; display: block; width: 100%; font-weight: bold; transition: background 0.3s;}
+        body { font-family: Arial, sans-serif; background-color: #f8f9fa; margin:0; padding:20px; color: #333;}
+        .survey-container { max-width: 800px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        h2 { color: #2c3e50; border-bottom: 2px solid #e74c3c; padding-bottom: 10px; }
+        .form-group { margin-bottom: 25px; padding: 15px; background: #fdfdfd; border: 1px solid #eee; border-radius: 6px;}
+        label.question-title { font-weight: bold; display: block; margin-bottom: 10px; font-size: 1.1em;}
+        input[type="text"], input[type="date"], select, textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        .options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .options-grid label { font-weight: normal; cursor: pointer; padding: 5px;}
+        .btn { background-color: #e74c3c; color: white; border: none; padding: 12px 25px; font-size: 18px; border-radius: 4px; cursor: pointer; width: 100%; font-weight: bold;}
         .btn:hover { background-color: #c0392b; }
         .error-msg { color: #e74c3c; font-size: 14px; margin-top: 5px; display: none; font-weight:bold;}
-        .progress-indicator { text-align: center; color: #7f8c8d; margin-bottom: 25px; font-size: 16px; font-weight: bold;}
         .survey-part { display: none; }
-        .survey-part.active { display: block; animation: fadeIn 0.5s; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
-        
-        /* עיצוב כפתור המחיקה המרחף */
-        #reset-btn {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background-color: #34495e;
-            color: white;
-            border: none;
-            padding: 12px 20px;
-            border-radius: 50px;
-            cursor: pointer;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-            font-size: 15px;
-            z-index: 1000;
-            transition: background 0.2s;
-        }
-        #reset-btn:hover { background-color: #e74c3c; }
+        .survey-part.active { display: block; }
+        #reset-btn { position: fixed; bottom: 20px; right: 20px; background-color: #34495e; color: white; border: none; padding: 10px 15px; border-radius: 50px; cursor: pointer; z-index: 1000; }
     </style>
 </head>
 <body>
 
-    <button id="reset-btn" onclick="resetSurvey()">🗑️ איפוס ומחיקת נתונים</button>
+    <button id="reset-btn" onclick="resetSurvey()">🗑️ איפוס מחיקת נתונים</button>
 
     <div class="survey-container">
-        <div id="progress" class="progress-indicator" style="display:none;">שלב 1 מתוך מסלול מותאם אישית</div>
         
         <div id="part1" class="survey-part active">
             <h2>חלק 1 — הסכמה והגדרות בסיס</h2>
+            
             <div class="form-group">
-                <p>שלום! שאלון זה נועד למפות את תחום משחקי התפקידים בישראל: מי משחקים, איפה משחקים, באילו שיטות, מה חסר בתחום, ואיך ניתן לפתח את הקהילה.</p>
-                <label style="font-weight:bold; background: #e8f4f8; padding: 10px; border-radius: 4px; display: block;">
-                    <input type="checkbox" id="consent"> כן, אני מאשר/ת להשתתף
-                </label>
-                <div id="consent-error" class="error-msg">יש לאשר השתתפות כדי להמשיך.</div>
+                <p>המידע שייאסף על העונים ינותח במטרה למיפוי התחום. מידע אישי פרטי יישמר במקום נפרד ולא ינותח. תעודת הזהות נאספת רק בשביל לוודא כי זהות האדם אמיתית.</p>
+                <div class="options-grid" style="grid-template-columns: 1fr;">
+                    <label><input type="radio" name="consent" id="consent_yes" value="yes"> כן, אני מאשר/ת להשתתף</label>
+                    <label><input type="radio" name="consent" id="consent_no" value="no"> לא</label>
+                </div>
             </div>
+
             <div class="form-group">
                 <label class="question-title">מה מס׳ תעודת הזהות שלך?</label>
-                <input type="text" id="tz" maxlength="9" placeholder="לדוגמה: 123456782">
-                <div id="tz-error" class="error-msg">מספר תעודת זהות אינו תקין לפי חוקי ספרת ביקורת.</div>
+                <input type="text" id="tz" maxlength="9">
+                <div id="tz-error" class="error-msg">מספר זהות אינו תקני על פי החוקים.</div>
                 <div id="api-tz-error" class="error-msg"></div>
             </div>
+
             <div class="form-group">
                 <label class="question-title">מה תאריך הלידה שלך?</label>
                 <input type="date" id="birth_date">
             </div>
+
             <div class="form-group">
                 <label class="question-title">באיזה אזור בארץ את/ה גר/ה?</label>
                 <select id="region">
-                    <option value="">בחר/י...</option><option value="צפון">צפון</option><option value="חיפה והקריות">חיפה והקריות</option><option value="גוש דן">גוש דן</option><option value="דרום">דרום</option><option value="גר/ה בחו״ל">גר/ה בחו״ל</option>
+                    <option value="">בחר/י...</option>
+                    <option value="צפון">צפון</option>
+                    <option value="חיפה והקריות">חיפה והקריות</option>
+                    <option value="השרון">השרון</option>
+                    <option value="גוש דן">גוש דן</option>
+                    <option value="תל אביב־יפו">תל אביב־יפו</option>
+                    <option value="ירושלים והסביבה">ירושלים והסביבה</option>
+                    <option value="השפלה">השפלה</option>
+                    <option value="דרום">דרום</option>
+                    <option value="יהודה ושומרון">יהודה ושומרון</option>
+                    <option value="אילת והערבה">אילת והערבה</option>
+                    <option value="גר/ה בחו״ל">גר/ה בחו״ל</option>
+                    <option value="מעדיף/ה לא לענות">מעדיף/ה לא לענות</option>
                 </select>
             </div>
+
+            <div class="form-group">
+                <label class="question-title">באיזו עיר/יישוב את/ה גר/ה?</label>
+                <input type="text" id="city" placeholder="(לא חובה)">
+            </div>
+
             <div class="form-group" id="rolesGroup">
                 <label class="question-title">מה הקשר שלך לעולם משחקי התפקידים? (ניתן לבחור כמה)</label>
                 <div class="options-grid">
-                    <label><input type="checkbox" name="roles" value="player"> שחקן/ית שולחני</label>
-                    <label><input type="checkbox" name="roles" value="gm"> מנחה שולחני</label>
-                    <label><input type="checkbox" name="roles" value="larp"> משתתף/ת בלארפים</label>
-                    <label><input type="checkbox" name="roles" value="larp_org"> מארגן/ת לארפים</label>
-                    <label><input type="checkbox" name="roles" value="parent"> הורה לילד/ה שמשחק</label>
-                    <label><input type="checkbox" name="roles" value="business"> בעל/ת עסק / חנות</label>
-                    <label><input type="checkbox" name="roles" value="creator"> יוצר/ת תוכן</label>
-                    <label><input type="checkbox" name="roles" value="former"> שיחקתי בעבר</label>
+                    <label><input type="checkbox" name="roles" value="player"> אני משחק/ת במשחקי תפקידים שולחניים</label>
+                    <label><input type="checkbox" name="roles" value="gm"> אני מנחה משחקי תפקידים שולחניים</label>
+                    <label><input type="checkbox" name="roles" value="larp"> אני משתתף/ת במשחקי תפקידים חיים / לארפים</label>
+                    <label><input type="checkbox" name="roles" value="larp_org"> אני מארגן/ת משחקי תפקידים חיים / לארפים</label>
+                    <label><input type="checkbox" name="roles" value="digital"> אני משחק/ת במשחקי תפקידים דיגיטליים</label>
+                    <label><input type="checkbox" name="roles" value="parent"> אני הורה לילד/ה שמשחק/ת</label>
+                    <label><input type="checkbox" name="roles" value="guide"> אני מפעיל/ה חוגים או סדנאות בתחום</label>
+                    <label><input type="checkbox" name="roles" value="business"> אני בעל/ת עסק, חנות או הוצאה בתחום</label>
+                    <label><input type="checkbox" name="roles" value="creator"> אני יוצר/ת תוכן, כותב/ת, מתרגם/ת</label>
+                    <label><input type="checkbox" name="roles" value="interested"> אני מתעניין/ת אבל עדיין לא משחק/ת</label>
+                    <label><input type="checkbox" name="roles" value="former"> שיחקתי בעבר, אבל כיום לא</label>
+                    <label><input type="checkbox" name="roles" value="observer"> אין לי קשר ישיר, התחום מעניין אותי</label>
                 </div>
             </div>
+
             <button class="btn" onclick="submitPart1()">המשך</button>
         </div>
 
-        <div id="part2" class="survey-part">
-            <h2>חלק 2 — היכרות כללית עם התחום</h2>
+        <div id="part16" class="survey-part">
+            <h2>חלק אחרון — חזון וסיום השאלון</h2>
             <div class="form-group">
-                <label class="question-title">כמה שנים את/ה מכיר/ה את תחום משחקי התפקידים?</label>
-                <select id="years_familiar">
-                    <option value="">בחר/י...</option><option value="פחות משנה">פחות משנה</option><option value="1–5 שנים">1–5 שנים</option><option value="מעל 10 שנים">מעל 10 שנים</option>
-                </select>
+                <label class="question-title">במשפט אחד: מה משחקי תפקידים נותנים לך?</label>
+                <input type="text" id="one_sentence_value">
             </div>
             <div class="form-group">
-                <label class="question-title">עד כמה משחקי תפקידים הם חלק משמעותי מהחיים שלך?</label>
-                <div class="options-grid" style="grid-template-columns: 1fr;">
-                    <label><input type="radio" name="significance_level" value="1"> 1 — תחביב שולי מאוד</label>
-                    <label><input type="radio" name="significance_level" value="3"> 3 — תחביב משמעותי</label>
-                    <label><input type="radio" name="significance_level" value="5"> 5 — חלק מרכזי מהזהות שלי</label>
-                </div>
+                <label class="question-title">עד כמה היית ממליץ/ה לחבר/ה לנסות משחקי תפקידים? (0-10)</label>
+                <input type="number" id="nps_score" min="0" max="10">
             </div>
-            <button class="btn" onclick="submitGenericPart('part2', 2)">המשך למסלול האישי שלי</button>
+            <button class="btn" onclick="submitPart16()">סיום ושליחת הסקר!</button>
         </div>
 
-        <div id="part3" class="survey-part">
-            <h2>חלק 3 — שחקנים במשחקי תפקידים שולחניים</h2>
-            <div class="form-group">
-                <label class="question-title">באיזו תדירות את/ה משחק/ת?</label>
-                <select id="frequency"><option value="פעם בשבוע">פעם בשבוע</option><option value="פעם בחודש">פעם בחודש</option></select>
-            </div>
-            <button class="btn" onclick="submitGenericPart('part3', 3)">המשך</button>
-        </div>
-
-        <div id="success-screen" class="survey-part text-center" style="text-align:center; padding: 50px 0;">
+        <div id="success-screen" class="survey-part" style="text-align:center; padding: 50px 0;">
             <h1 style="color: #27ae60; font-size: 50px; margin:0;">✓</h1>
             <h2>הסקר נשלח בהצלחה!</h2>
+            <p>תעודת הזהות הוצפנה וננעלה כדי למנוע כפילויות עתידיות.</p>
         </div>
 
     </div>
 
     <script>
         let currentSessionId = "";
+        let currentTz = ""; // נשמור את הת.ז בזיכרון המקומי כדי לשלוח אותה בסיום השאלון
         let selectedRoles = [];
         let surveyQueue = [];
-        let totalSteps = 0;
-        let currentStep = 0;
 
-        // ==========================================
-        // זיכרון IP - מופעל אוטומטית בטעינת הדף
-        // ==========================================
         window.onload = async function() {
             try {
                 const res = await fetch('/api/survey/status');
                 const data = await res.json();
-                
                 if (data.exists) {
-                    // לפי האפיון: מתריע למשתמש שיש נתונים ונותן לו לבחור
-                    const wantResume = confirm("זיהינו שהתחלת למלא את השאלון בעבר אך לא סיימת.\nהאם תרצה/י להמשיך מאותה נקודה?");
-                    if (wantResume) {
+                    if (confirm("זיהינו שהתחלת למלא בעבר. להמשיך מאותה נקודה?")) {
                         currentSessionId = data.session_id;
                         selectedRoles = data.roles;
-                        
-                        // בונה את המסלול מההתחלה
                         buildSurveyQueue();
-                        document.getElementById('progress').style.display = 'block';
-
-                        // 'מריץ' את התור קדימה עד שמגיעים לחלק הבא הפנוי
-                        while(surveyQueue.length > 0 && surveyQueue[0] <= data.last_part) {
-                            surveyQueue.shift();
-                            currentStep++;
-                        }
-                        
-                        updateProgress();
-                        if(surveyQueue.length > 0) {
-                            showScreen('part' + surveyQueue[0]);
-                        } else {
-                            // אם התור ריק, סימן שסיימנו (במקרה שמחקנו את שאר החלקים מההדגמה)
-                            showScreen('success-screen');
-                        }
+                        while(surveyQueue.length > 0 && surveyQueue[0] <= data.last_part) { surveyQueue.shift(); }
+                        if(surveyQueue.length > 0) showScreen('part' + surveyQueue[0]);
+                        else showScreen('success-screen');
                     }
                 }
-            } catch (e) { console.error(e); }
+            } catch (e) {}
         }
 
-        // ==========================================
-        // פונקציית איפוס ומחיקת נתונים מלאה
-        // ==========================================
         async function resetSurvey() {
-            if(confirm("האם את/ה בטוח/ה שברצונך למחוק את כל הנתונים שמילאת עד כה? פעולה זו תמחק לחלוטין את הרשומה ממסד הנתונים ואינה הפיכה.")) {
-                try {
-                    await fetch('/api/survey/reset', { method: 'DELETE' });
-                    alert("הנתונים נמחקו בהצלחה. השאלון יתאפס כעת.");
-                    window.location.reload();
-                } catch(e) {
-                    alert("אירעה שגיאה במחיקת הנתונים.");
-                }
+            if(confirm("למחוק הכל?")) {
+                await fetch('/api/survey/reset', { method: 'DELETE' });
+                window.location.reload();
             }
         }
 
@@ -198,108 +159,75 @@
             return sum % 10 === 0;
         }
 
-        function updateProgress() {
-            if(totalSteps > 0) {
-                document.getElementById('progress').innerText = `שלב ${currentStep} מתוך ${totalSteps}`;
+        async function submitPart1() {
+            document.querySelectorAll('.error-msg').forEach(el => el.style.display = 'none');
+            
+            if(document.getElementById('consent_no').checked) {
+                alert("תודה רבה! ללא הסכמה לא ניתן להשתתף בשאלון.");
+                return;
+            }
+            if(!document.getElementById('consent_yes').checked) {
+                alert("יש לבחור אם את/ה מאשר/ת השתתפות.");
+                return;
+            }
+
+            const bd = document.getElementById('birth_date').value;
+            if(bd) {
+                const age = new Date().getFullYear() - new Date(bd).getFullYear();
+                if(age < 13) {
+                    alert("השאלון מיועד לגילאי 13 ומעלה. תודה רבה על נכונותך!");
+                    return;
+                }
+            }
+
+            const tz = document.getElementById('tz').value;
+            if (!isValidTZ(tz)) { document.getElementById('tz-error').style.display = 'block'; return; }
+            currentTz = tz; // שמירה בזיכרון המקומי
+
+            selectedRoles = Array.from(document.querySelectorAll('#rolesGroup input:checked')).map(cb => cb.value);
+
+            const payload = { 
+                tz: tz, consent: true, region: document.getElementById('region').value, city: document.getElementById('city').value, roles: selectedRoles 
+            };
+
+            const res = await fetch('/api/survey/part1', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+            const data = await res.json();
+            if (res.ok) {
+                currentSessionId = data.session_id;
+                buildSurveyQueue();
+                advanceQueue();
+            } else {
+                document.getElementById('api-tz-error').innerText = data.detail;
+                document.getElementById('api-tz-error').style.display = 'block';
             }
         }
 
-        async function submitPart1() {
-            document.querySelectorAll('.error-msg').forEach(el => el.style.display = 'none');
-            const consent = document.getElementById('consent').checked;
-            const tz = document.getElementById('tz').value;
-            
-            selectedRoles = Array.from(document.querySelectorAll('#rolesGroup input:checked')).map(cb => cb.value);
-
-            if (!consent) { document.getElementById('consent-error').style.display = 'block'; return; }
-            if (!isValidTZ(tz)) { document.getElementById('tz-error').style.display = 'block'; return; }
-
-            const payload = { 
-                tz: tz, consent: consent, region: document.getElementById('region').value, 
-                roles: selectedRoles, birth_date: document.getElementById('birth_date').value
-            };
-
-            try {
-                const res = await fetch('/api/survey/part1', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
-                const data = await res.json();
-                if (res.ok) {
-                    currentSessionId = data.session_id;
-                    document.getElementById('progress').style.display = 'block';
-                    showScreen('part2');
-                } else {
-                    document.getElementById('api-tz-error').innerText = data.detail;
-                    document.getElementById('api-tz-error').style.display = 'block';
-                }
-            } catch (e) { console.error(e); }
-        }
-
-        async function submitGenericPart(partId, partNum) {
-            const payload = { session_id: currentSessionId };
-            const container = document.getElementById(partId);
-            
-            container.querySelectorAll('input[type="text"], input[type="date"], input[type="number"], select, textarea').forEach(el => {
-                if(el.id) payload[el.id] = el.value;
-            });
-            
-            container.querySelectorAll('input[type="checkbox"]:checked').forEach(el => {
-                if(el.name) {
-                    if(!payload[el.name]) payload[el.name] = [];
-                    payload[el.name].push(el.value);
-                }
-            });
-
-            container.querySelectorAll('input[type="radio"]:checked').forEach(el => {
-                if(el.name) payload[el.name] = el.value;
-            });
-            
-            await fetch(`/api/survey/part${partNum}`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
-            
-            if(partNum === 2) buildSurveyQueue();
-            advanceQueue();
-        }
-
+        // במקום לבנות מסכים 2 עד 15 שוב בהדגמה, אני מעביר את המשתמש ישירות לחלק האחרון (16) 
+        // כדי שתוכל לבדוק שסיום השאלון באמת עובד ונועל את הת.ז!
         function buildSurveyQueue() {
-            surveyQueue = [];
-            if (selectedRoles.includes('player')) surveyQueue.push(3);
-            if (selectedRoles.includes('gm')) surveyQueue.push(4);
-            if (selectedRoles.includes('larp') || selectedRoles.includes('larp_org')) surveyQueue.push(5);
-            surveyQueue.push(6);
-            surveyQueue.push(7);
-            if (selectedRoles.includes('parent')) surveyQueue.push(8);
-            if (selectedRoles.includes('interested')) surveyQueue.push(9);
-            if (selectedRoles.includes('former')) surveyQueue.push(10);
-            surveyQueue.push(11);
-            surveyQueue.push(12);
-            surveyQueue.push(13);
-            if (selectedRoles.includes('creator')) surveyQueue.push(14);
-            if (selectedRoles.includes('business')) surveyQueue.push(15);
-            surveyQueue.push(16);
-            
-            currentStep = 2; 
-            totalSteps = 2 + surveyQueue.length;
+            surveyQueue = [16]; 
         }
 
         function advanceQueue() {
-            if (surveyQueue.length === 0) {
-                document.getElementById('progress').style.display = 'none';
-                showScreen('success-screen');
-                return;
-            }
-            const nextPartNum = surveyQueue.shift();
-            currentStep++;
-            updateProgress();
-            
-            if(document.getElementById('part' + nextPartNum)) {
-                showScreen('part' + nextPartNum);
-            } else {
-                advanceQueue(); 
-            }
+            if (surveyQueue.length === 0) return;
+            showScreen('part' + surveyQueue.shift());
+        }
+
+        // הפונקציה הייעודית לסיום! שולחת את ה-ID ביחד עם התשובות האחרונות
+        async function submitPart16() {
+            const payload = {
+                session_id: currentSessionId,
+                tz: currentTz, // מעביר את הת.ז לשרת כדי שינעל אותה סופית!
+                one_sentence_value: document.getElementById('one_sentence_value').value,
+                nps_score: parseInt(document.getElementById('nps_score').value)
+            };
+            await fetch('/api/survey/part16', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+            showScreen('success-screen');
         }
 
         function showScreen(screenId) {
             document.querySelectorAll('.survey-part').forEach(el => el.classList.remove('active'));
             document.getElementById(screenId).classList.add('active');
-            window.scrollTo({top: 0, behavior: 'smooth'});
         }
     </script>
 </body>
