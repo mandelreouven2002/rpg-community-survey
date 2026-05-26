@@ -1,5 +1,203 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
-<head><meta charset="UTF-8"><title>שאלון - דוח הקהילה</title></head>
-<body><h1>כאן ירוץ השאלון (שלב 1 - הסכמה ות.ז)</h1></body>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>שאלון - דוח הקהילה</title>
+    <link rel="icon" type="image/png" href="https://gate.roleplay.top/rpg-game.png">
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #f8f9fa; color: #333; }
+        .survey-container { max-width: 700px; margin: 40px auto; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        h2 { color: #2c3e50; border-bottom: 2px solid #e74c3c; padding-bottom: 10px; }
+        .form-group { margin-bottom: 20px; }
+        label { font-weight: bold; display: block; margin-bottom: 8px; }
+        input[type="text"], input[type="date"], select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        .checkbox-group label { font-weight: normal; display: inline-block; margin-right: 10px; }
+        .btn { background-color: #e74c3c; color: white; border: none; padding: 10px 20px; font-size: 16px; border-radius: 4px; cursor: pointer; float: left; }
+        .btn:hover { background-color: #c0392b; }
+        .error-msg { color: #e74c3c; font-size: 14px; margin-top: 5px; display: none; }
+        
+        /* הסתרת כל החלקים מלבד הפעיל */
+        .survey-part { display: none; }
+        .survey-part.active { display: block; }
+    </style>
+</head>
+<body>
+
+    <div class="survey-container">
+        
+        <div id="part1" class="survey-part active">
+            <h2>חלק 1 — הסכמה והגדרות בסיס</h2>
+            <div class="form-group">
+                <p>שאלון זה נועד למיפוי קהילת שחקני התפקידים בישראל. הנתונים ינותחו בצורה מצרפית בלבד. תעודת הזהות נאספת אך ורק לווידוא זהות, תישמר מוצפנת ולא תקושר לתשובות.</p>
+                <label>
+                    <input type="checkbox" id="consent"> אני מאשר/ת להשתתף
+                </label>
+                <div id="consent-error" class="error-msg">יש לאשר השתתפות כדי להמשיך.</div>
+            </div>
+
+            <div class="form-group">
+                <label for="tz">מספר תעודת זהות (9 ספרות):</label>
+                <input type="text" id="tz" maxlength="9" placeholder="לדוגמה: 123456782">
+                <div id="tz-error" class="error-msg">מספר תעודת זהות אינו תקין.</div>
+                <div id="api-tz-error" class="error-msg">תעודת זהות זו כבר השתתפה בסקר.</div>
+            </div>
+
+            <div class="form-group">
+                <label for="region">אזור מגורים:</label>
+                <select id="region">
+                    <option value="">בחר/י...</option>
+                    <option value="north">צפון</option>
+                    <option value="haifa">חיפה והקריות</option>
+                    <option value="center">גוש דן</option>
+                    <option value="south">דרום</option>
+                </select>
+            </div>
+
+            <div class="form-group checkbox-group">
+                <label>מה הקשר שלך לעולם משחקי התפקידים?</label><br>
+                <input type="checkbox" name="roles" value="player"> שחקן/ית שולחני<br>
+                <input type="checkbox" name="roles" value="gm"> מנחה שולחני<br>
+                <input type="checkbox" name="roles" value="larp"> משתתף/ת לארפים<br>
+            </div>
+
+            <button class="btn" onclick="submitPart1()">המשך</button>
+            <div style="clear:both;"></div>
+        </div>
+
+        <div id="part2" class="survey-part">
+            <h2>חלק 2 — היכרות כללית עם התחום</h2>
+            
+            <div class="form-group">
+                <label for="years">כמה שנים את/ה מכיר/ה את תחום משחקי התפקידים?</label>
+                <select id="years">
+                    <option value="<1">פחות משנה</option>
+                    <option value="1-2">1-2 שנים</option>
+                    <option value="3-5">3-5 שנים</option>
+                    <option value="11+">מעל 10 שנים</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="significance">עד כמה משחקי תפקידים הם חלק משמעותי מחייך? (1 = תחביב שולי, 5 = מרכזי)</label>
+                <select id="significance">
+                    <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option>
+                </select>
+            </div>
+
+            <button class="btn" onclick="submitPart2()">המשך</button>
+            <div style="clear:both;"></div>
+        </div>
+
+        <div id="part3" class="survey-part">
+            <h2>חלק 3 — שחקנים במשחקי תפקידים שולחניים</h2>
+            <p>חלק זה מוצג כיוון שסימנת שאת/ה שחקן/ית שולחני/ת.</p>
+            <p>... כאן יכנסו שאלות השחקנים ...</p>
+            <button class="btn" onclick="alert('סוף ההדגמה! עובד מעולה!')">שלח סקר</button>
+            <div style="clear:both;"></div>
+        </div>
+
+    </div>
+
+    <script>
+        // משתנה לשמירת ה-ID של הסשן לאורך מילוי הסקר
+        let currentSessionId = "";
+        let selectedRoles = [];
+
+        // פונקציה לבדיקת ספרת ביקורת ישראלית
+        function isValidTZ(id) {
+            id = String(id).trim();
+            if (id.length > 9 || isNaN(id)) return false;
+            id = id.padStart(9, '0');
+            let sum = 0;
+            for (let i = 0; i < 9; i++) {
+                let digit = parseInt(id[i]);
+                let step = digit * ((i % 2) + 1);
+                sum += step > 9 ? step - 9 : step;
+            }
+            return sum % 10 === 0;
+        }
+
+        async function submitPart1() {
+            // איפוס שגיאות
+            document.getElementById('consent-error').style.display = 'none';
+            document.getElementById('tz-error').style.display = 'none';
+            document.getElementById('api-tz-error').style.display = 'none';
+
+            const consent = document.getElementById('consent').checked;
+            const tz = document.getElementById('tz').value;
+            const region = document.getElementById('region').value;
+            
+            // איסוף התפקידים שסומנו (נשמור אותם כדי לדעת לאן לנווט)
+            selectedRoles = Array.from(document.querySelectorAll('input[name="roles"]:checked')).map(cb => cb.value);
+
+            if (!consent) {
+                document.getElementById('consent-error').style.display = 'block';
+                return;
+            }
+
+            if (!isValidTZ(tz)) {
+                document.getElementById('tz-error').style.display = 'block';
+                return;
+            }
+
+            // שליחה לשרת
+            try {
+                const response = await fetch('/api/survey/part1', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tz: tz, consent: consent, region: region, roles: selectedRoles })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    currentSessionId = data.session_id; // שמירת המזהה
+                    moveToPart('part2'); // מעבר למסך הבא
+                } else {
+                    document.getElementById('api-tz-error').innerText = data.detail;
+                    document.getElementById('api-tz-error').style.display = 'block';
+                }
+            } catch (error) {
+                console.error("Error:", error);
+            }
+        }
+
+        async function submitPart2() {
+            const years = document.getElementById('years').value;
+            const significance = parseInt(document.getElementById('significance').value);
+
+            try {
+                const response = await fetch('/api/survey/part2', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        session_id: currentSessionId, 
+                        years_familiar: years, 
+                        significance_level: significance 
+                    })
+                });
+
+                if (response.ok) {
+                    // לוגיקה חכמה לניתוב:
+                    if (selectedRoles.includes('player')) {
+                        moveToPart('part3'); // אם הוא שחקן, תראה לו את חלק 3
+                    } else {
+                        // אם לא, דלג לחלק אחר (בהמשך תוסיף פה את part 4, 5 וכו')
+                        alert('אתה לא שחקן שולחני, לכן דילגנו על חלק 3!');
+                    }
+                }
+            } catch (error) {
+                console.error("Error:", error);
+            }
+        }
+
+        // פונקציית מעבר בין מסכים
+        function moveToPart(partId) {
+            document.querySelectorAll('.survey-part').forEach(el => el.classList.remove('active'));
+            document.getElementById(partId).classList.add('active');
+        }
+    </script>
+
+</body>
 </html>
