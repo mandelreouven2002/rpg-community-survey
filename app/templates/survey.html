@@ -7,19 +7,22 @@
     <link rel="icon" type="image/png" href="https://gate.roleplay.top/rpg-game.png">
     <style>
         body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #f8f9fa; color: #333; margin:0; padding:20px;}
-        .survey-container { max-width: 800px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        h2 { color: #2c3e50; border-bottom: 2px solid #e74c3c; padding-bottom: 10px; margin-top: 0;}
-        .form-group { margin-bottom: 25px; }
-        label { font-weight: bold; display: block; margin-bottom: 8px; }
-        input[type="text"], select, textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-        .checkbox-group label, .radio-group label { font-weight: normal; display: inline-block; margin-right: 15px; margin-bottom: 5px;}
-        .btn { background-color: #e74c3c; color: white; border: none; padding: 12px 25px; font-size: 16px; border-radius: 4px; cursor: pointer; display: block; width: 100%; font-weight: bold;}
+        .survey-container { max-width: 800px; margin: 0 auto; background: #fff; padding: 40px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h2 { color: #2c3e50; border-bottom: 2px solid #e74c3c; padding-bottom: 10px; margin-top: 0; font-size: 1.8em;}
+        .form-group { margin-bottom: 30px; background: #fdfdfd; padding: 15px; border-radius: 6px; border: 1px solid #eee;}
+        label.question-title { font-weight: bold; display: block; margin-bottom: 15px; font-size: 1.1em; color: #2c3e50;}
+        input[type="text"], input[type="date"], select, textarea { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-family: inherit;}
+        .options-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; }
+        .options-grid label { display: flex; align-items: center; font-weight: normal; margin: 0; cursor: pointer; padding: 8px; border-radius: 4px; transition: background 0.2s;}
+        .options-grid label:hover { background: #f1f2f6; }
+        .options-grid input { margin-left: 10px; }
+        .btn { background-color: #e74c3c; color: white; border: none; padding: 15px 30px; font-size: 18px; border-radius: 6px; cursor: pointer; display: block; width: 100%; font-weight: bold; transition: background 0.3s;}
         .btn:hover { background-color: #c0392b; }
         .error-msg { color: #e74c3c; font-size: 14px; margin-top: 5px; display: none; font-weight:bold;}
-        .progress-indicator { text-align: center; color: #7f8c8d; margin-bottom: 20px; font-size: 14px; }
+        .progress-indicator { text-align: center; color: #7f8c8d; margin-bottom: 25px; font-size: 16px; font-weight: bold;}
         .survey-part { display: none; }
         .survey-part.active { display: block; animation: fadeIn 0.5s; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
@@ -29,114 +32,198 @@
         
         <div id="part1" class="survey-part active">
             <h2>חלק 1 — הסכמה והגדרות בסיס</h2>
+            
             <div class="form-group">
-                <p>השאלון נועד למפות את תחום משחקי התפקידים בישראל. הנתונים נשמרים בעילום שם מלא.</p>
-                <label><input type="checkbox" id="consent"> <strong>כן, אני מאשר/ת להשתתף</strong></label>
+                <p>שלום! שאלון זה נועד למפות את תחום משחקי התפקידים בישראל: מי משחקים, איפה משחקים, באילו שיטות, מה חסר בתחום, ואיך ניתן לפתח את הקהילה.</p>
+                <p>הנתונים ינותחו בצורה מצרפית בלבד, ללא פרסום פרטים מזהים של משתתפים.</p>
+                <label style="font-weight:bold; background: #e8f4f8; padding: 10px; border-radius: 4px; display: block;">
+                    <input type="checkbox" id="consent"> כן, אני מאשר/ת להשתתף
+                </label>
                 <div id="consent-error" class="error-msg">יש לאשר השתתפות כדי להמשיך.</div>
             </div>
+
             <div class="form-group">
-                <label>מספר תעודת זהות (נשמרת מוצפנת, משמשת למניעת כפילויות בלבד):</label>
-                <input type="text" id="tz" maxlength="9">
-                <div id="tz-error" class="error-msg">מספר תעודת זהות אינו תקין.</div>
+                <label class="question-title">מה מס׳ תעודת הזהות שלך?</label>
+                <p style="font-size: 0.9em; color: #7f8c8d; margin-top: 0;">תעודת הזהות נאספת רק לווידוא זהות אמיתית, נשמרת מוצפנת ולא מקושרת לתשובות.</p>
+                <input type="text" id="tz" maxlength="9" placeholder="לדוגמה: 123456782">
+                <div id="tz-error" class="error-msg">מספר תעודת זהות אינו תקין לפי חוקי ספרת ביקורת.</div>
                 <div id="api-tz-error" class="error-msg"></div>
             </div>
+
             <div class="form-group">
-                <label>אזור מגורים:</label>
+                <label class="question-title">מה תאריך הלידה שלך?</label>
+                <input type="date" id="birth_date">
+            </div>
+
+            <div class="form-group">
+                <label class="question-title">באיזה אזור בארץ את/ה גר/ה?</label>
                 <select id="region">
-                    <option value="">בחר/י...</option><option value="צפון">צפון</option><option value="גוש דן">גוש דן</option><option value="דרום">דרום</option>
+                    <option value="">בחר/י...</option>
+                    <option value="צפון">צפון</option>
+                    <option value="חיפה והקריות">חיפה והקריות</option>
+                    <option value="השרון">השרון</option>
+                    <option value="גוש דן">גוש דן</option>
+                    <option value="תל אביב־יפו">תל אביב־יפו</option>
+                    <option value="ירושלים והסביבה">ירושלים והסביבה</option>
+                    <option value="השפלה">השפלה</option>
+                    <option value="דרום">דרום</option>
+                    <option value="יהודה ושומרון">יהודה ושומרון</option>
+                    <option value="אילת והערבה">אילת והערבה</option>
+                    <option value="גר/ה בחו״ל">גר/ה בחו״ל</option>
                 </select>
             </div>
-            <div class="form-group checkbox-group" id="rolesGroup">
-                <label><strong>מה הקשר שלך לעולם משחקי התפקידים? (ניתן לבחור כמה)</strong></label><br>
-                <label><input type="checkbox" value="player"> שחקן/ית שולחני</label>
-                <label><input type="checkbox" value="gm"> מנחה שולחני</label>
-                <label><input type="checkbox" value="larp"> משתתף/ת לארפים</label>
-                <label><input type="checkbox" value="parent"> הורה לילד/ה שמשחק</label>
-                <label><input type="checkbox" value="interested"> מתעניין/ת אבל טרם משחק/ת</label>
-                <label><input type="checkbox" value="former"> שיחקתי בעבר, כיום לא</label>
-                <label><input type="checkbox" value="creator"> יוצר/ת תוכן / כותב/ת</label>
-                <label><input type="checkbox" value="business"> בעל/ת עסק / חנות בתחום</label>
+
+            <div class="form-group" id="rolesGroup">
+                <label class="question-title">מה הקשר שלך לעולם משחקי התפקידים? (ניתן לבחור כמה תשובות)</label>
+                <div class="options-grid">
+                    <label><input type="checkbox" name="roles" value="player"> אני משחק/ת במשחקי תפקידים שולחניים</label>
+                    <label><input type="checkbox" name="roles" value="gm"> אני מנחה משחקי תפקידים שולחניים</label>
+                    <label><input type="checkbox" name="roles" value="larp"> אני משתתף/ת בלארפים</label>
+                    <label><input type="checkbox" name="roles" value="larp_org"> אני מארגן/ת לארפים</label>
+                    <label><input type="checkbox" name="roles" value="digital"> משחק/ת בדיגיטליים (לא שולחניים)</label>
+                    <label><input type="checkbox" name="roles" value="parent"> אני הורה לילד/ה שמשחק/ת</label>
+                    <label><input type="checkbox" name="roles" value="guide"> מפעיל/ה חוגים או סדנאות בתחום</label>
+                    <label><input type="checkbox" name="roles" value="business"> בעל/ת עסק, חנות או הוצאה</label>
+                    <label><input type="checkbox" name="roles" value="creator"> יוצר/ת תוכן, כותב/ת או מתרגם/ת</label>
+                    <label><input type="checkbox" name="roles" value="interested"> מתעניין/ת אבל עדיין לא משחק/ת</label>
+                    <label><input type="checkbox" name="roles" value="former"> שיחקתי בעבר, אבל כיום לא</label>
+                    <label><input type="checkbox" name="roles" value="observer"> התחום מעניין אותי ללא קשר ישיר</label>
+                </div>
             </div>
+
             <button class="btn" onclick="submitPart1()">המשך</button>
         </div>
 
         <div id="part2" class="survey-part">
             <h2>חלק 2 — היכרות כללית עם התחום</h2>
+            
             <div class="form-group">
-                <label>כמה שנים את/ה מכיר/ה את התחום?</label>
+                <label class="question-title">כמה שנים את/ה מכיר/ה את תחום משחקי התפקידים?</label>
                 <select id="years_familiar">
-                    <option value="<1">פחות משנה</option><option value="1-5">1-5 שנים</option><option value="5-10">5-10 שנים</option><option value="10+">מעל 10 שנים</option>
+                    <option value="">בחר/י...</option>
+                    <option value="פחות משנה">פחות משנה</option>
+                    <option value="1–2 שנים">1–2 שנים</option>
+                    <option value="3–5 שנים">3–5 שנים</option>
+                    <option value="6–10 שנים">6–10 שנים</option>
+                    <option value="11–20 שנים">11–20 שנים</option>
+                    <option value="מעל 20 שנים">מעל 20 שנים</option>
+                    <option value="לא בטוח/ה">לא בטוח/ה</option>
                 </select>
             </div>
+
             <div class="form-group">
-                <label>עד כמה משחקי תפקידים הם חלק משמעותי מחייך? (1=שולי, 5=מרכזי)</label>
-                <select id="significance_level">
-                    <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option>
-                </select>
+                <label class="question-title">עד כמה משחקי תפקידים הם חלק משמעותי מהחיים שלך?</label>
+                <div class="options-grid" style="grid-template-columns: 1fr;">
+                    <label><input type="radio" name="significance_level" value="1"> 1 — תחביב שולי מאוד</label>
+                    <label><input type="radio" name="significance_level" value="2"> 2 — תחביב קטן</label>
+                    <label><input type="radio" name="significance_level" value="3"> 3 — תחביב משמעותי</label>
+                    <label><input type="radio" name="significance_level" value="4"> 4 — חלק מרכזי מהפנאי שלי</label>
+                    <label><input type="radio" name="significance_level" value="5"> 5 — חלק מרכזי מהזהות/הקהילה/העבודה שלי</label>
+                </div>
             </div>
-            <button class="btn" onclick="submitPart2()">המשך למסלול האישי שלי</button>
+
+            <div class="form-group">
+                <label class="question-title">אילו סוגי משחקי תפקידים מעניינים אותך? (ניתן לבחור כמה)</label>
+                <div class="options-grid">
+                    <label><input type="checkbox" name="interested_types" value="שולחניים"> משחקי תפקידים שולחניים</label>
+                    <label><input type="checkbox" name="interested_types" value="לארפים"> משחקי תפקידים חיים / לארפים</label>
+                    <label><input type="checkbox" name="interested_types" value="ילדים"> משחקי תפקידים לילדים ונוער</label>
+                    <label><input type="checkbox" name="interested_types" value="טיפוליים"> משחקי תפקידים טיפוליים / חינוכיים</label>
+                    <label><input type="checkbox" name="interested_types" value="אונליין"> משחקי תפקידים אונליין</label>
+                    <label><input type="checkbox" name="interested_types" value="וואנשוטים"> משחקים חד־פעמיים / וואנשוטים</label>
+                    <label><input type="checkbox" name="interested_types" value="קמפיינים"> קמפיינים ארוכים</label>
+                    <label><input type="checkbox" name="interested_types" value="נרטיביים"> משחקים סיפוריים / נרטיביים</label>
+                    <label><input type="checkbox" name="interested_types" value="טקטיים"> משחקים טקטיים / קרביים</label>
+                    <label><input type="checkbox" name="interested_types" value="אינדי"> משחקי תפקידים עצמאיים / אינדי</label>
+                    <label><input type="checkbox" name="interested_types" value="מו"ד"> מבוכים ודרקונים בעיקר</label>
+                    <label><input type="checkbox" name="interested_types" value="יצירה"> יצירת שיטות ומשחקים</label>
+                </div>
+            </div>
+
+            <button class="btn" onclick="submitGenericPart('part2', 2)">המשך למסלול האישי שלי</button>
         </div>
 
         <div id="part3" class="survey-part">
             <h2>חלק 3 — שחקנים במשחקי תפקידים שולחניים</h2>
+            
             <div class="form-group">
-                <label>באיזו תדירות את/ה משחק/ת?</label>
-                <select id="frequency"><option value="שבועי">פעם בשבוע</option><option value="חודשי">פעם בחודש</option><option value="נדיר">לעיתים נדירות</option></select>
+                <label class="question-title">האם את/ה משחק/ת כיום במשחקי תפקידים שולחניים?</label>
+                <select id="play_currently">
+                    <option value="">בחר/י...</option>
+                    <option value="כן, קבוע">כן, באופן קבוע</option>
+                    <option value="כן, מדי פעם">כן, מדי פעם</option>
+                    <option value="לעיתים נדירות">לעיתים נדירות</option>
+                    <option value="לא כרגע">לא כרגע, אבל שיחקתי בעבר</option>
+                    <option value="עוד לא">עוד לא שיחקתי, אבל אני רוצה</option>
+                </select>
             </div>
-            <div class="form-group radio-group">
-                <label><strong>האם את/ה משחק/ת בעיקר אונליין או פרונטלית?</strong></label><br>
-                <label><input type="radio" name="online_vs_physical" value="אונליין"> אונליין</label>
-                <label><input type="radio" name="online_vs_physical" value="פרונטלי"> פרונטלי</label>
-                <label><input type="radio" name="online_vs_physical" value="חצי-חצי"> חצי-חצי</label>
+
+            <div class="form-group">
+                <label class="question-title">באיזו תדירות את/ה משחק/ת?</label>
+                <select id="frequency">
+                    <option value="">בחר/י...</option>
+                    <option value="יותר מפעם בשבוע">יותר מפעם בשבוע</option>
+                    <option value="פעם בשבוע">פעם בשבוע</option>
+                    <option value="פעמיים־שלוש בחודש">פעמיים־שלוש בחודש</option>
+                    <option value="פעם בחודש">פעם בחודש</option>
+                    <option value="כמה פעמים בשנה">כמה פעמים בשנה</option>
+                    <option value="כמעט ולא">כמעט ולא</option>
+                </select>
             </div>
+
+            <div class="form-group">
+                <label class="question-title">באילו מסגרות את/ה משחק/ת? (ניתן לבחור כמה)</label>
+                <div class="options-grid">
+                    <label><input type="checkbox" name="frameworks" value="קבוצה פרטית"> קבוצה פרטית עם חברים</label>
+                    <label><input type="checkbox" name="frameworks" value="אונליין"> קבוצה אונליין</label>
+                    <label><input type="checkbox" name="frameworks" value="חוג"> חוג</label>
+                    <label><input type="checkbox" name="frameworks" value="כנסים"> משחקים בכנסים</label>
+                    <label><input type="checkbox" name="frameworks" value="חנויות"> משחקים בחנויות / מתחמים</label>
+                    <label><input type="checkbox" name="frameworks" value="עמותה"> דרך עמותה/ארגון</label>
+                    <label><input type="checkbox" name="frameworks" value="דיסקורד"> שרת דיסקורד / קהילה דיגיטלית</label>
+                    <label><input type="checkbox" name="frameworks" value="תשלום"> בתשלום עם מנחה מקצועי/ת</label>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="question-title">באילו שיטות משחק שיחקת בשנה האחרונה?</label>
+                <div class="options-grid">
+                    <label><input type="checkbox" name="systems_played" value="D&D 5e"> מבוכים ודרקונים 5e</label>
+                    <label><input type="checkbox" name="systems_played" value="D&D Other"> מבוכים ודרקונים גרסאות אחרות</label>
+                    <label><input type="checkbox" name="systems_played" value="Pathfinder"> Pathfinder</label>
+                    <label><input type="checkbox" name="systems_played" value="Call of Cthulhu"> Call of Cthulhu</label>
+                    <label><input type="checkbox" name="systems_played" value="World of Darkness"> Vampire / World of Darkness</label>
+                    <label><input type="checkbox" name="systems_played" value="Fate"> Fate</label>
+                    <label><input type="checkbox" name="systems_played" value="PbtA"> Powered by the Apocalypse</label>
+                    <label><input type="checkbox" name="systems_played" value="Blades"> Blades in the Dark</label>
+                    <label><input type="checkbox" name="systems_played" value="OSR"> OSR / משחקים בסגנון ישן</label>
+                    <label><input type="checkbox" name="systems_played" value="Hebrew"> משחקים בעברית</label>
+                    <label><input type="checkbox" name="systems_played" value="Homebrew"> שיטה מקורית של המנחה / יצרנו לבד</label>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="question-title">מהם הקשיים המרכזיים שלך כשחקן/ית?</label>
+                <div class="options-grid">
+                    <label><input type="checkbox" name="player_challenges" value="מציאת קבוצה"> קשה למצוא קבוצה</label>
+                    <label><input type="checkbox" name="player_challenges" value="מציאת מנחה"> קשה למצוא מנחה</label>
+                    <label><input type="checkbox" name="player_challenges" value="תיאום זמנים"> קשה לתאם זמנים</label>
+                    <label><input type="checkbox" name="player_challenges" value="מקומות"> אין מספיק מקומות לשחק בהם</label>
+                    <label><input type="checkbox" name="player_challenges" value="תחבורה"> התחבורה בעייתית / מרחק</label>
+                    <label><input type="checkbox" name="player_challenges" value="עלויות"> עלויות גבוהות</label>
+                    <label><input type="checkbox" name="player_challenges" value="גיל"> קשה למצוא משחקים שמתאימים לגיל</label>
+                    <label><input type="checkbox" name="player_challenges" value="חברתי"> חשש חברתי להצטרף לקבוצה חדשה</label>
+                    <label><input type="checkbox" name="player_challenges" value="אין קושי"> אין קושי מיוחד</label>
+                </div>
+            </div>
+
             <button class="btn" onclick="submitGenericPart('part3', 3)">המשך</button>
         </div>
 
-        <div id="part4" class="survey-part">
-            <h2>חלק 4 — מנחים</h2>
-            <div class="form-group">
-                <label>האם קיבלת תשלום על הנחיה בשנה האחרונה?</label>
-                <select id="paid_gm"><option value="לא">לא</option><option value="כן, מדי פעם">כן, מדי פעם</option><option value="כן, קבוע">כן, באופן קבוע</option></select>
-            </div>
-            <button class="btn" onclick="submitGenericPart('part4', 4)">המשך</button>
-        </div>
-
-        <div id="part5" class="survey-part">
-            <h2>חלק 5 — לארפים ומשחקי תפקידים חיים</h2>
-            <div class="form-group">
-                <label>האם היית רוצה לראות יותר לארפים בישראל?</label>
-                <select id="want_more_larps"><option value="כן, הרבה יותר">כן, הרבה יותר</option><option value="לא">לא</option></select>
-            </div>
-            <button class="btn" onclick="submitGenericPart('part5', 5)">המשך</button>
-        </div>
-
-        <div id="part6" class="survey-part">
-            <h2>חלק 6 — כנסים ואירועים</h2>
-            <div class="form-group">
-                <label>האם השתתפת בכנס (כמו דרקוניקון, אייקון) בשנה האחרונה?</label>
-                <select id="attended_con"><option value="כן">כן</option><option value="לא">לא</option></select>
-            </div>
-            <button class="btn" onclick="submitGenericPart('part6', 6)">המשך</button>
-        </div>
-
-        <div id="part16" class="survey-part">
-            <h2>חלק סיום — חזון ופיתוח התחום</h2>
-            <div class="form-group">
-                <label>במשפט אחד: מה משחקי תפקידים נותנים לך?</label>
-                <input type="text" id="one_sentence_value">
-            </div>
-            <div class="form-group">
-                <label>עד כמה היית ממליץ/ה לחבר/ה לנסות משחקי תפקידים? (0-10)</label>
-                <input type="number" id="nps_score" min="0" max="10">
-            </div>
-            <button class="btn" onclick="submitPart16()">סיום ושליחת הסקר!</button>
-        </div>
-        
         <div id="success-screen" class="survey-part text-center" style="text-align:center; padding: 50px 0;">
             <h1 style="color: #27ae60; font-size: 50px; margin:0;">✓</h1>
             <h2>הסקר נשלח בהצלחה!</h2>
             <p>תודה רבה על השתתפותך בדוח הקהילה השנתי. תשובותיך נשמרו בצורה מאובטחת.</p>
-            <p>הדף יתרענן בעוד מספר שניות...</p>
         </div>
 
     </div>
@@ -144,7 +231,7 @@
     <script>
         let currentSessionId = "";
         let selectedRoles = [];
-        let surveyQueue = []; // התור שינהל אילו מסכים המשתמש יראה
+        let surveyQueue = [];
         let totalSteps = 0;
         let currentStep = 0;
 
@@ -177,7 +264,13 @@
             if (!consent) { document.getElementById('consent-error').style.display = 'block'; return; }
             if (!isValidTZ(tz)) { document.getElementById('tz-error').style.display = 'block'; return; }
 
-            const payload = { tz: tz, consent: consent, region: document.getElementById('region').value, roles: selectedRoles };
+            const payload = { 
+                tz: tz, 
+                consent: consent, 
+                region: document.getElementById('region').value, 
+                roles: selectedRoles,
+                birth_date: document.getElementById('birth_date').value
+            };
 
             try {
                 const res = await fetch('/api/survey/part1', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
@@ -192,98 +285,85 @@
             } catch (e) { console.error(e); }
         }
 
-        async function submitPart2() {
-            const payload = {
-                session_id: currentSessionId,
-                years_familiar: document.getElementById('years_familiar').value,
-                significance_level: parseInt(document.getElementById('significance_level').value),
-                interested_types: []
-            };
+        // ==========================================
+        // מנוע איסוף נתונים אוטומטי לכל המסכים
+        // ==========================================
+        async function submitGenericPart(partId, partNum) {
+            const payload = { session_id: currentSessionId };
+            const container = document.getElementById(partId);
+            
+            // איסוף שדות טקסט, תאריכים ותפריטים
+            container.querySelectorAll('input[type="text"], input[type="date"], input[type="number"], select, textarea').forEach(el => {
+                if(el.id) payload[el.id] = el.value;
+            });
+            
+            // איסוף תיבות סימון (Checkboxes) לתוך מערכים לפי השם שלהן
+            container.querySelectorAll('input[type="checkbox"]:checked').forEach(el => {
+                if(el.name) {
+                    if(!payload[el.name]) payload[el.name] = [];
+                    payload[el.name].push(el.value);
+                }
+            });
 
-            const res = await fetch('/api/survey/part2', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
-            if (res.ok) {
-                buildSurveyQueue(); // בניית המסלול האישי!
-                advanceQueue();
+            // איסוף כפתורי רדיו (Radios)
+            container.querySelectorAll('input[type="radio"]:checked').forEach(el => {
+                if(el.name) payload[el.name] = el.value;
+            });
+            
+            await fetch(`/api/survey/part${partNum}`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+            
+            // אם זה חלק 2, כאן אנחנו מרכיבים את המסלול
+            if(partNum === 2) {
+                buildSurveyQueue();
             }
+            advanceQueue();
         }
 
-        // ==========================================
-        // מנוע הניתוב الحכם (State Machine Queue)
-        // ==========================================
+        // בניית התור המותנה
         function buildSurveyQueue() {
-            surveyQueue = []; // איפוס
-            
+            surveyQueue = [];
             if (selectedRoles.includes('player')) surveyQueue.push(3);
             if (selectedRoles.includes('gm')) surveyQueue.push(4);
-            if (selectedRoles.includes('larp')) surveyQueue.push(5);
-            
+            if (selectedRoles.includes('larp') || selectedRoles.includes('larp_org')) surveyQueue.push(5);
             surveyQueue.push(6); // כנסים - לכולם
-            // surveyQueue.push(7); // חנויות - דילגתי בהדגמה כדי לחסוך מקום
-            
+            surveyQueue.push(7); // חנויות
             if (selectedRoles.includes('parent')) surveyQueue.push(8);
             if (selectedRoles.includes('interested')) surveyQueue.push(9);
             if (selectedRoles.includes('former')) surveyQueue.push(10);
-            
-            // surveyQueue.push(11); // קהילה
-            // surveyQueue.push(12); // תחביבים
-            // surveyQueue.push(13); // עבודה
-            
+            surveyQueue.push(11); // קהילה
+            surveyQueue.push(12); // תחביבים
+            surveyQueue.push(13); // עבודה ולימודים
             if (selectedRoles.includes('creator')) surveyQueue.push(14);
             if (selectedRoles.includes('business')) surveyQueue.push(15);
+            surveyQueue.push(16); // סיום
             
-            surveyQueue.push(16); // חזון וסיום - לכולם!
-
-            currentStep = 2; // אנחנו כרגע סיימנו את 2
+            currentStep = 2; 
             totalSteps = 2 + surveyQueue.length;
         }
 
         function advanceQueue() {
-            if (surveyQueue.length === 0) return;
+            if (surveyQueue.length === 0) {
+                document.getElementById('progress').style.display = 'none';
+                showScreen('success-screen');
+                return;
+            }
+            
             const nextPartNum = surveyQueue.shift();
             currentStep++;
             updateProgress();
             
-            // בדיקה האם ה-HTML של החלק קיים בדף. אם לא, דלג עליו באופן שקט
             if(document.getElementById('part' + nextPartNum)) {
                 showScreen('part' + nextPartNum);
             } else {
-                advanceQueue(); // מדלג לחלק הבא באופן אוטומטי אם חסר HTML
-            }
-        }
-
-        // פונקציה גנרית לשליחת נתונים של חלקי אמצע
-        async function submitGenericPart(partId, partNum) {
-            // כאן אפשר לאסוף נתונים דינמית מהטופס. לצורך ההדגמה אנחנו שולחים אובייקט בסיסי
-            const payload = { session_id: currentSessionId };
-            
-            // איסוף אוטומטי של שדות רגילים שמילאנו (select, input text)
-            document.querySelectorAll(`#${partId} input[type="text"], #${partId} select`).forEach(el => {
-                if(el.id) payload[el.id] = el.value;
-            });
-            
-            await fetch(`/api/survey/part${partNum}`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
-            advanceQueue();
-        }
-
-        async function submitPart16() {
-            const payload = {
-                session_id: currentSessionId,
-                one_sentence_value: document.getElementById('one_sentence_value').value,
-                nps_score: parseInt(document.getElementById('nps_score').value)
-            };
-
-            const res = await fetch('/api/survey/part16', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
-            if (res.ok) {
-                document.getElementById('progress').style.display = 'none';
-                showScreen('success-screen');
-                setTimeout(() => { window.location.href = "/"; }, 5000);
+                // אם המסך עדיין לא נכתב ב-HTML, הוא מדלג אוטומטית למסך הבא כדי לא לקרוס!
+                advanceQueue(); 
             }
         }
 
         function showScreen(screenId) {
             document.querySelectorAll('.survey-part').forEach(el => el.classList.remove('active'));
             document.getElementById(screenId).classList.add('active');
-            window.scrollTo(0,0);
+            window.scrollTo({top: 0, behavior: 'smooth'});
         }
     </script>
 </body>
