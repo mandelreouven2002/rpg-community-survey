@@ -104,3 +104,56 @@ def submit_part16(data: Part16Request, db: Session = Depends(get_db)):
         db.commit()
     return save_part(db, Part16Vision, data.dict())
 
+
+# ==================== זיכרון IP ואיפוס ====================
+
+@router.get("/status")
+def check_status(request: Request, db: Session = Depends(get_db)):
+    ip_hash = hash_string(request.client.host if request.client else "unknown")
+    # מחפש סשן פתוח שטרם נשלח סופית
+    session = db.query(SurveySession).filter(SurveySession.ip_hash == ip_hash, SurveySession.is_submitted == False).first()
+    
+    if not session:
+        return {"exists": False}
+        
+    # אם יש סשן, נשלוף את התפקידים שנבחרו בחלק 1 כדי שה-JS יידע לשחזר את המסלול
+    part1 = db.query(Part1Basic).filter(Part1Basic.session_id == session.id).first()
+    if not part1:
+        return {"exists": False}
+        
+    # בדיקה מהירה לאיזה חלק המשתמש הגיע לאחרונה
+    last_part = 1
+    if session.part2: last_part = 2
+    if session.part3: last_part = 3
+    if session.part4: last_part = 4
+    if session.part5: last_part = 5
+    if session.part6: last_part = 6
+    if session.part7: last_part = 7
+    if session.part8: last_part = 8
+    if session.part9: last_part = 9
+    if session.part10: last_part = 10
+    if session.part11: last_part = 11
+    if session.part12: last_part = 12
+    if session.part13: last_part = 13
+    if session.part14: last_part = 14
+    if session.part15: last_part = 15
+
+    return {
+        "exists": True, 
+        "session_id": session.id, 
+        "roles": part1.roles, 
+        "last_part": last_part
+    }
+
+@router.delete("/reset")
+def reset_survey(request: Request, db: Session = Depends(get_db)):
+    ip_hash = hash_string(request.client.host if request.client else "unknown")
+    session = db.query(SurveySession).filter(SurveySession.ip_hash == ip_hash, SurveySession.is_submitted == False).first()
+    
+    if session:
+        # פקודת המחיקה הזו תמחק אוטומטית (Cascade) גם את כל התשובות 
+        # המקושרות לסשן הזה בכל 16 הטבלאות האחרות!
+        db.delete(session)
+        db.commit()
+        return {"status": "deleted"}
+    return {"status": "not_found"}
