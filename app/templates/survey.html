@@ -6,105 +6,148 @@
     <title>שאלון - דוח הקהילה</title>
     <link rel="icon" type="image/png" href="https://gate.roleplay.top/rpg-game.png">
     <style>
-        body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #f8f9fa; color: #333; }
-        .survey-container { max-width: 700px; margin: 40px auto; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        h2 { color: #2c3e50; border-bottom: 2px solid #e74c3c; padding-bottom: 10px; }
-        .form-group { margin-bottom: 20px; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #f8f9fa; color: #333; margin:0; padding:20px;}
+        .survey-container { max-width: 800px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        h2 { color: #2c3e50; border-bottom: 2px solid #e74c3c; padding-bottom: 10px; margin-top: 0;}
+        .form-group { margin-bottom: 25px; }
         label { font-weight: bold; display: block; margin-bottom: 8px; }
-        input[type="text"], input[type="date"], select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-        .checkbox-group label { font-weight: normal; display: inline-block; margin-right: 10px; }
-        .btn { background-color: #e74c3c; color: white; border: none; padding: 10px 20px; font-size: 16px; border-radius: 4px; cursor: pointer; float: left; }
+        input[type="text"], select, textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        .checkbox-group label, .radio-group label { font-weight: normal; display: inline-block; margin-right: 15px; margin-bottom: 5px;}
+        .btn { background-color: #e74c3c; color: white; border: none; padding: 12px 25px; font-size: 16px; border-radius: 4px; cursor: pointer; display: block; width: 100%; font-weight: bold;}
         .btn:hover { background-color: #c0392b; }
-        .error-msg { color: #e74c3c; font-size: 14px; margin-top: 5px; display: none; }
-        
-        /* הסתרת כל החלקים מלבד הפעיל */
+        .error-msg { color: #e74c3c; font-size: 14px; margin-top: 5px; display: none; font-weight:bold;}
+        .progress-indicator { text-align: center; color: #7f8c8d; margin-bottom: 20px; font-size: 14px; }
         .survey-part { display: none; }
-        .survey-part.active { display: block; }
+        .survey-part.active { display: block; animation: fadeIn 0.5s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
 
     <div class="survey-container">
+        <div id="progress" class="progress-indicator">שלב 1 מתוך מסלול מותאם אישית</div>
         
         <div id="part1" class="survey-part active">
             <h2>חלק 1 — הסכמה והגדרות בסיס</h2>
             <div class="form-group">
-                <p>שאלון זה נועד למיפוי קהילת שחקני התפקידים בישראל. הנתונים ינותחו בצורה מצרפית בלבד. תעודת הזהות נאספת אך ורק לווידוא זהות, תישמר מוצפנת ולא תקושר לתשובות.</p>
-                <label>
-                    <input type="checkbox" id="consent"> אני מאשר/ת להשתתף
-                </label>
+                <p>השאלון נועד למפות את תחום משחקי התפקידים בישראל. הנתונים נשמרים בעילום שם מלא.</p>
+                <label><input type="checkbox" id="consent"> <strong>כן, אני מאשר/ת להשתתף</strong></label>
                 <div id="consent-error" class="error-msg">יש לאשר השתתפות כדי להמשיך.</div>
             </div>
-
             <div class="form-group">
-                <label for="tz">מספר תעודת זהות (9 ספרות):</label>
-                <input type="text" id="tz" maxlength="9" placeholder="לדוגמה: 123456782">
+                <label>מספר תעודת זהות (נשמרת מוצפנת, משמשת למניעת כפילויות בלבד):</label>
+                <input type="text" id="tz" maxlength="9">
                 <div id="tz-error" class="error-msg">מספר תעודת זהות אינו תקין.</div>
-                <div id="api-tz-error" class="error-msg">תעודת זהות זו כבר השתתפה בסקר.</div>
+                <div id="api-tz-error" class="error-msg"></div>
             </div>
-
             <div class="form-group">
-                <label for="region">אזור מגורים:</label>
+                <label>אזור מגורים:</label>
                 <select id="region">
-                    <option value="">בחר/י...</option>
-                    <option value="north">צפון</option>
-                    <option value="haifa">חיפה והקריות</option>
-                    <option value="center">גוש דן</option>
-                    <option value="south">דרום</option>
+                    <option value="">בחר/י...</option><option value="צפון">צפון</option><option value="גוש דן">גוש דן</option><option value="דרום">דרום</option>
                 </select>
             </div>
-
-            <div class="form-group checkbox-group">
-                <label>מה הקשר שלך לעולם משחקי התפקידים?</label><br>
-                <input type="checkbox" name="roles" value="player"> שחקן/ית שולחני<br>
-                <input type="checkbox" name="roles" value="gm"> מנחה שולחני<br>
-                <input type="checkbox" name="roles" value="larp"> משתתף/ת לארפים<br>
+            <div class="form-group checkbox-group" id="rolesGroup">
+                <label><strong>מה הקשר שלך לעולם משחקי התפקידים? (ניתן לבחור כמה)</strong></label><br>
+                <label><input type="checkbox" value="player"> שחקן/ית שולחני</label>
+                <label><input type="checkbox" value="gm"> מנחה שולחני</label>
+                <label><input type="checkbox" value="larp"> משתתף/ת לארפים</label>
+                <label><input type="checkbox" value="parent"> הורה לילד/ה שמשחק</label>
+                <label><input type="checkbox" value="interested"> מתעניין/ת אבל טרם משחק/ת</label>
+                <label><input type="checkbox" value="former"> שיחקתי בעבר, כיום לא</label>
+                <label><input type="checkbox" value="creator"> יוצר/ת תוכן / כותב/ת</label>
+                <label><input type="checkbox" value="business"> בעל/ת עסק / חנות בתחום</label>
             </div>
-
             <button class="btn" onclick="submitPart1()">המשך</button>
-            <div style="clear:both;"></div>
         </div>
 
         <div id="part2" class="survey-part">
             <h2>חלק 2 — היכרות כללית עם התחום</h2>
-            
             <div class="form-group">
-                <label for="years">כמה שנים את/ה מכיר/ה את תחום משחקי התפקידים?</label>
-                <select id="years">
-                    <option value="<1">פחות משנה</option>
-                    <option value="1-2">1-2 שנים</option>
-                    <option value="3-5">3-5 שנים</option>
-                    <option value="11+">מעל 10 שנים</option>
+                <label>כמה שנים את/ה מכיר/ה את התחום?</label>
+                <select id="years_familiar">
+                    <option value="<1">פחות משנה</option><option value="1-5">1-5 שנים</option><option value="5-10">5-10 שנים</option><option value="10+">מעל 10 שנים</option>
                 </select>
             </div>
-
             <div class="form-group">
-                <label for="significance">עד כמה משחקי תפקידים הם חלק משמעותי מחייך? (1 = תחביב שולי, 5 = מרכזי)</label>
-                <select id="significance">
+                <label>עד כמה משחקי תפקידים הם חלק משמעותי מחייך? (1=שולי, 5=מרכזי)</label>
+                <select id="significance_level">
                     <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option>
                 </select>
             </div>
-
-            <button class="btn" onclick="submitPart2()">המשך</button>
-            <div style="clear:both;"></div>
+            <button class="btn" onclick="submitPart2()">המשך למסלול האישי שלי</button>
         </div>
 
         <div id="part3" class="survey-part">
             <h2>חלק 3 — שחקנים במשחקי תפקידים שולחניים</h2>
-            <p>חלק זה מוצג כיוון שסימנת שאת/ה שחקן/ית שולחני/ת.</p>
-            <p>... כאן יכנסו שאלות השחקנים ...</p>
-            <button class="btn" onclick="alert('סוף ההדגמה! עובד מעולה!')">שלח סקר</button>
-            <div style="clear:both;"></div>
+            <div class="form-group">
+                <label>באיזו תדירות את/ה משחק/ת?</label>
+                <select id="frequency"><option value="שבועי">פעם בשבוע</option><option value="חודשי">פעם בחודש</option><option value="נדיר">לעיתים נדירות</option></select>
+            </div>
+            <div class="form-group radio-group">
+                <label><strong>האם את/ה משחק/ת בעיקר אונליין או פרונטלית?</strong></label><br>
+                <label><input type="radio" name="online_vs_physical" value="אונליין"> אונליין</label>
+                <label><input type="radio" name="online_vs_physical" value="פרונטלי"> פרונטלי</label>
+                <label><input type="radio" name="online_vs_physical" value="חצי-חצי"> חצי-חצי</label>
+            </div>
+            <button class="btn" onclick="submitGenericPart('part3', 3)">המשך</button>
+        </div>
+
+        <div id="part4" class="survey-part">
+            <h2>חלק 4 — מנחים</h2>
+            <div class="form-group">
+                <label>האם קיבלת תשלום על הנחיה בשנה האחרונה?</label>
+                <select id="paid_gm"><option value="לא">לא</option><option value="כן, מדי פעם">כן, מדי פעם</option><option value="כן, קבוע">כן, באופן קבוע</option></select>
+            </div>
+            <button class="btn" onclick="submitGenericPart('part4', 4)">המשך</button>
+        </div>
+
+        <div id="part5" class="survey-part">
+            <h2>חלק 5 — לארפים ומשחקי תפקידים חיים</h2>
+            <div class="form-group">
+                <label>האם היית רוצה לראות יותר לארפים בישראל?</label>
+                <select id="want_more_larps"><option value="כן, הרבה יותר">כן, הרבה יותר</option><option value="לא">לא</option></select>
+            </div>
+            <button class="btn" onclick="submitGenericPart('part5', 5)">המשך</button>
+        </div>
+
+        <div id="part6" class="survey-part">
+            <h2>חלק 6 — כנסים ואירועים</h2>
+            <div class="form-group">
+                <label>האם השתתפת בכנס (כמו דרקוניקון, אייקון) בשנה האחרונה?</label>
+                <select id="attended_con"><option value="כן">כן</option><option value="לא">לא</option></select>
+            </div>
+            <button class="btn" onclick="submitGenericPart('part6', 6)">המשך</button>
+        </div>
+
+        <div id="part16" class="survey-part">
+            <h2>חלק סיום — חזון ופיתוח התחום</h2>
+            <div class="form-group">
+                <label>במשפט אחד: מה משחקי תפקידים נותנים לך?</label>
+                <input type="text" id="one_sentence_value">
+            </div>
+            <div class="form-group">
+                <label>עד כמה היית ממליץ/ה לחבר/ה לנסות משחקי תפקידים? (0-10)</label>
+                <input type="number" id="nps_score" min="0" max="10">
+            </div>
+            <button class="btn" onclick="submitPart16()">סיום ושליחת הסקר!</button>
+        </div>
+        
+        <div id="success-screen" class="survey-part text-center" style="text-align:center; padding: 50px 0;">
+            <h1 style="color: #27ae60; font-size: 50px; margin:0;">✓</h1>
+            <h2>הסקר נשלח בהצלחה!</h2>
+            <p>תודה רבה על השתתפותך בדוח הקהילה השנתי. תשובותיך נשמרו בצורה מאובטחת.</p>
+            <p>הדף יתרענן בעוד מספר שניות...</p>
         </div>
 
     </div>
 
     <script>
-        // משתנה לשמירת ה-ID של הסשן לאורך מילוי הסקר
         let currentSessionId = "";
         let selectedRoles = [];
+        let surveyQueue = []; // התור שינהל אילו מסכים המשתמש יראה
+        let totalSteps = 0;
+        let currentStep = 0;
 
-        // פונקציה לבדיקת ספרת ביקורת ישראלית
         function isValidTZ(id) {
             id = String(id).trim();
             if (id.length > 9 || isNaN(id)) return false;
@@ -118,86 +161,130 @@
             return sum % 10 === 0;
         }
 
-        async function submitPart1() {
-            // איפוס שגיאות
-            document.getElementById('consent-error').style.display = 'none';
-            document.getElementById('tz-error').style.display = 'none';
-            document.getElementById('api-tz-error').style.display = 'none';
+        function updateProgress() {
+            if(totalSteps > 0) {
+                document.getElementById('progress').innerText = `שלב ${currentStep} מתוך ${totalSteps}`;
+            }
+        }
 
+        async function submitPart1() {
+            document.querySelectorAll('.error-msg').forEach(el => el.style.display = 'none');
             const consent = document.getElementById('consent').checked;
             const tz = document.getElementById('tz').value;
-            const region = document.getElementById('region').value;
             
-            // איסוף התפקידים שסומנו (נשמור אותם כדי לדעת לאן לנווט)
-            selectedRoles = Array.from(document.querySelectorAll('input[name="roles"]:checked')).map(cb => cb.value);
+            selectedRoles = Array.from(document.querySelectorAll('#rolesGroup input:checked')).map(cb => cb.value);
 
-            if (!consent) {
-                document.getElementById('consent-error').style.display = 'block';
-                return;
-            }
+            if (!consent) { document.getElementById('consent-error').style.display = 'block'; return; }
+            if (!isValidTZ(tz)) { document.getElementById('tz-error').style.display = 'block'; return; }
 
-            if (!isValidTZ(tz)) {
-                document.getElementById('tz-error').style.display = 'block';
-                return;
-            }
+            const payload = { tz: tz, consent: consent, region: document.getElementById('region').value, roles: selectedRoles };
 
-            // שליחה לשרת
             try {
-                const response = await fetch('/api/survey/part1', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ tz: tz, consent: consent, region: region, roles: selectedRoles })
-                });
-
-                const data = await response.json();
-
-                if (response.ok) {
-                    currentSessionId = data.session_id; // שמירת המזהה
-                    moveToPart('part2'); // מעבר למסך הבא
+                const res = await fetch('/api/survey/part1', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+                const data = await res.json();
+                if (res.ok) {
+                    currentSessionId = data.session_id;
+                    showScreen('part2');
                 } else {
                     document.getElementById('api-tz-error').innerText = data.detail;
                     document.getElementById('api-tz-error').style.display = 'block';
                 }
-            } catch (error) {
-                console.error("Error:", error);
-            }
+            } catch (e) { console.error(e); }
         }
 
         async function submitPart2() {
-            const years = document.getElementById('years').value;
-            const significance = parseInt(document.getElementById('significance').value);
+            const payload = {
+                session_id: currentSessionId,
+                years_familiar: document.getElementById('years_familiar').value,
+                significance_level: parseInt(document.getElementById('significance_level').value),
+                interested_types: []
+            };
 
-            try {
-                const response = await fetch('/api/survey/part2', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        session_id: currentSessionId, 
-                        years_familiar: years, 
-                        significance_level: significance 
-                    })
-                });
-
-                if (response.ok) {
-                    // לוגיקה חכמה לניתוב:
-                    if (selectedRoles.includes('player')) {
-                        moveToPart('part3'); // אם הוא שחקן, תראה לו את חלק 3
-                    } else {
-                        // אם לא, דלג לחלק אחר (בהמשך תוסיף פה את part 4, 5 וכו')
-                        alert('אתה לא שחקן שולחני, לכן דילגנו על חלק 3!');
-                    }
-                }
-            } catch (error) {
-                console.error("Error:", error);
+            const res = await fetch('/api/survey/part2', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+            if (res.ok) {
+                buildSurveyQueue(); // בניית המסלול האישי!
+                advanceQueue();
             }
         }
 
-        // פונקציית מעבר בין מסכים
-        function moveToPart(partId) {
+        // ==========================================
+        // מנוע הניתוב الحכם (State Machine Queue)
+        // ==========================================
+        function buildSurveyQueue() {
+            surveyQueue = []; // איפוס
+            
+            if (selectedRoles.includes('player')) surveyQueue.push(3);
+            if (selectedRoles.includes('gm')) surveyQueue.push(4);
+            if (selectedRoles.includes('larp')) surveyQueue.push(5);
+            
+            surveyQueue.push(6); // כנסים - לכולם
+            // surveyQueue.push(7); // חנויות - דילגתי בהדגמה כדי לחסוך מקום
+            
+            if (selectedRoles.includes('parent')) surveyQueue.push(8);
+            if (selectedRoles.includes('interested')) surveyQueue.push(9);
+            if (selectedRoles.includes('former')) surveyQueue.push(10);
+            
+            // surveyQueue.push(11); // קהילה
+            // surveyQueue.push(12); // תחביבים
+            // surveyQueue.push(13); // עבודה
+            
+            if (selectedRoles.includes('creator')) surveyQueue.push(14);
+            if (selectedRoles.includes('business')) surveyQueue.push(15);
+            
+            surveyQueue.push(16); // חזון וסיום - לכולם!
+
+            currentStep = 2; // אנחנו כרגע סיימנו את 2
+            totalSteps = 2 + surveyQueue.length;
+        }
+
+        function advanceQueue() {
+            if (surveyQueue.length === 0) return;
+            const nextPartNum = surveyQueue.shift();
+            currentStep++;
+            updateProgress();
+            
+            // בדיקה האם ה-HTML של החלק קיים בדף. אם לא, דלג עליו באופן שקט
+            if(document.getElementById('part' + nextPartNum)) {
+                showScreen('part' + nextPartNum);
+            } else {
+                advanceQueue(); // מדלג לחלק הבא באופן אוטומטי אם חסר HTML
+            }
+        }
+
+        // פונקציה גנרית לשליחת נתונים של חלקי אמצע
+        async function submitGenericPart(partId, partNum) {
+            // כאן אפשר לאסוף נתונים דינמית מהטופס. לצורך ההדגמה אנחנו שולחים אובייקט בסיסי
+            const payload = { session_id: currentSessionId };
+            
+            // איסוף אוטומטי של שדות רגילים שמילאנו (select, input text)
+            document.querySelectorAll(`#${partId} input[type="text"], #${partId} select`).forEach(el => {
+                if(el.id) payload[el.id] = el.value;
+            });
+            
+            await fetch(`/api/survey/part${partNum}`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+            advanceQueue();
+        }
+
+        async function submitPart16() {
+            const payload = {
+                session_id: currentSessionId,
+                one_sentence_value: document.getElementById('one_sentence_value').value,
+                nps_score: parseInt(document.getElementById('nps_score').value)
+            };
+
+            const res = await fetch('/api/survey/part16', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+            if (res.ok) {
+                document.getElementById('progress').style.display = 'none';
+                showScreen('success-screen');
+                setTimeout(() => { window.location.href = "/"; }, 5000);
+            }
+        }
+
+        function showScreen(screenId) {
             document.querySelectorAll('.survey-part').forEach(el => el.classList.remove('active'));
-            document.getElementById(partId).classList.add('active');
+            document.getElementById(screenId).classList.add('active');
+            window.scrollTo(0,0);
         }
     </script>
-
 </body>
 </html>
