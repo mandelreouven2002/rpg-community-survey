@@ -102,3 +102,15 @@ def reset_survey(request: Request, db: Session = Depends(get_db)):
         db.commit()
         return {"status": "deleted"}
     return {"status": "not_found"}
+
+class TrackSelectionRequest(BaseModel):
+    session_id: str
+    survey_type: str
+
+@router.post("/set_track")
+def set_track(data: TrackSelectionRequest, db: Session = Depends(get_db)):
+    session_db = db.query(SurveySession).filter(SurveySession.id == data.session_id).first()
+    if session_db:
+        session_db.survey_type = data.survey_type
+        db.commit()
+    return {"status": "success"}
