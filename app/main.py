@@ -1,9 +1,10 @@
 from fastapi import FastAPI, Request
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
-from .database import engine, Base
+from app.database import engine, Base
+import app.models.models  # ייבוא חובה כדי שסנכרון הטבלאות יעבוד
 
-# Create tables
+# יצירת הטבלאות במסד הנתונים (אם הן עדיין לא קיימות)
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="RPG Community Survey Israel")
