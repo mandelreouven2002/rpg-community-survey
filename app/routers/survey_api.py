@@ -20,7 +20,7 @@ def hash_string(text: str) -> str:
 
 # ==================== מודלים ====================
 class Part1Request(BaseModel): tz: str; consent: bool; region: Optional[str] = None; city: Optional[str] = None; roles: List[str] = []
-class Part2Request(BaseModel): session_id: str; years_familiar: Optional[str] = None; significance_level: Optional[int] = None; interested_types: List[str] = []
+class Part2Request(BaseModel): session_id: str; years_familiar: Optional[str] = None; first_exposure: List[str] = []; significance_level: Optional[int] = None; interested_types: List[str] = []
 class Part3Request(BaseModel): session_id: str; play_currently: Optional[str] = None; frequency: Optional[str] = None; frameworks: List[str] = []; locations: Optional[str] = None; online_vs_physical: Optional[str] = None; online_tools: List[str] = []; systems_played: List[str] = []; favorite_genres: List[str] = []; active_groups: Optional[str] = None; group_size: Optional[str] = None; session_length: Optional[str] = None; player_challenges: List[str] = []
 class Part16Request(BaseModel): session_id: str; tz: str; missing_thing_1: Optional[str] = None; missing_thing_2: Optional[str] = None; missing_thing_3: Optional[str] = None; helpful_projects: List[str] = []; growth_perception: Optional[str] = None; what_brings_new_people: List[str] = []; nps_score: Optional[int] = None; one_sentence_value: Optional[str] = None
 
