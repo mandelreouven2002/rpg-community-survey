@@ -2,17 +2,250 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>דוח הקהילה השנתי למשחקי תפקידים בישראל</title>
-    <link rel="icon" href="https://gate.roleplay.top/rpg-game.png">
+    <link rel="icon" type="image/png" href="https://gate.roleplay.top/rpg-game.png">
     <style>
-        body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
-        .logo { max-width: 300px; }
+        :root {
+            --primary-color: #2c3e50;
+            --accent-color: #e74c3c;
+            --bg-color: #f8f9fa;
+            --text-color: #333;
+            --white: #ffffff;
+        }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+        }
+
+        /* תפריט ניווט עליון */
+        .navbar {
+            background-color: var(--primary-color);
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 1000;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .navbar-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 10px 20px;
+        }
+
+        .navbar-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            color: var(--white);
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+
+        .navbar-logo img {
+            height: 35px;
+        }
+
+        .nav-menu {
+            list-style: none;
+            display: flex;
+            gap: 20px;
+            margin: 0;
+            padding: 0;
+        }
+
+        .nav-item a {
+            color: var(--white);
+            text-decoration: none;
+            font-size: 1rem;
+            padding: 8px 12px;
+            border-radius: 4px;
+            transition: background 0.3s;
+        }
+
+        .nav-item a:hover, .nav-item a.active {
+            background-color: rgba(255, 255, 255, 0.15);
+        }
+
+        /* תוכן מרכזי */
+        .main-container {
+            max-width: 900px;
+            margin: 100px auto 50px auto;
+            padding: 20px;
+        }
+
+        .hero-section {
+            background-color: var(--white);
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            margin-bottom: 30px;
+        }
+
+        .hero-logo {
+            max-width: 280px;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            color: var(--primary-color);
+            margin-bottom: 20px;
+            font-size: 2.2rem;
+        }
+
+        .intro-text {
+            font-size: 1.15rem;
+            color: #555;
+            margin-bottom: 30px;
+            text-align: right;
+        }
+
+        /* כפתור פעולה מרכזי */
+        .btn-start {
+            display: inline-block;
+            background-color: var(--accent-color);
+            color: var(--white);
+            text-decoration: none;
+            font-size: 1.3rem;
+            font-weight: bold;
+            padding: 15px 40px;
+            border-radius: 30px;
+            box-shadow: 0 4px 15px rgba(231, 76, 60, 0.4);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn-start:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(231, 76, 60, 0.6);
+        }
+
+        /* מידע על מסלולי השאלון */
+        .tracks-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 600px) {
+            .tracks-section { grid-template-columns: 1fr; }
+        }
+
+        .track-card {
+            background-color: var(--white);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+            border-top: 4px solid var(--primary-color);
+        }
+
+        .track-card h3 {
+            margin-top: 0;
+            color: var(--primary-color);
+        }
+
+        /* אזור הגרלה ופרסים */
+        .raffle-section {
+            background: linear-gradient(135deg, #2c3e50, #34495e);
+            color: var(--white);
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        .raffle-section h2 {
+            margin-top: 0;
+            color: #f1c40f;
+            text-align: center;
+        }
+
+        .prizes-list {
+            margin-top: 20px;
+            padding-right: 20px;
+        }
+
+        .prizes-list li {
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+        }
+
+        .privacy-note {
+            font-size: 0.9rem;
+            color: #bdc3c7;
+            margin-top: 20px;
+            text-align: center;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            padding-top: 15px;
+        }
     </style>
 </head>
 <body>
-    <img src="https://gate.roleplay.top/full-logo.png" alt="Logo" class="logo">
-    <h1>דוח הקהילה השנתי למשחקי תפקידים בישראל</h1>
-    <p>ברוכים הבאים לסקר המקיף למיפוי קהילת שחקני התפקידים, המנחים והיוצרים בארץ.</p>
-    <a href="/survey"><button style="padding: 10px 20px; font-size: 18px;">התחל שאלון</button></a>
+
+    <nav class="navbar">
+        <div class="navbar-container">
+            <a href="/" class="navbar-logo">
+                <img src="https://gate.roleplay.top/rpg-game.png" alt="אייקון משחקי תפקידים">
+                <span>מדד משחקי התפקידים</span>
+            </a>
+            <ul class="nav-menu">
+                <li class="nav-item"><a href="/" class="active">דף הבית</a></li>
+                <li class="nav-item"><a href="/survey">השאלון</a></li>
+                <li class="nav-item"><a href="/admin">לוח בקרה</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main class="main-container">
+        
+        <div class="hero-section">
+            <img src="https://gate.roleplay.top/full-logo.png" alt="לוגו דוח הקהילה השנתי" class="hero-logo">
+            <h1>דוח הקהילה השנתי למשחקי תפקידים בישראל</h1>
+            
+            <div class="intro-text">
+                <p>שלום!</p>
+                <p>שאלון זה נועד למפות את תחום משחקי התפקידים בישראל: מי משחקים, איפה משחקים, באילו שיטות, באילו מסגרות, מה חסר בתחום, מה מונע מאנשים להצטרף, ואיך ניתן לפתח את הקהילה, הכנסים, החנויות, החוגים, המנחים והיוצרים בארץ.</p>
+                <p>השאלון מיועד לשחקנים, מנחים, הורים, מארגנים, בעלי עסקים, יוצרי תוכן, משתתפי כנסים, לארפיסטים וכל מי שיש לו קשר כלשהו לעולם משחקי התפקידים.</p>
+            </div>
+            
+            <a href="/survey" class="btn-start">לחצו כאן לתחילת השאלון</a>
+        </div>
+
+        <div class="tracks-section">
+            <div class="track-card">
+                <h3>גרסה קצרה (8–12 דקות)</h3>
+                <p>בערך 45–55 שאלות מותאמות אישית לפי תחומי העניין שלכם. הגרסה המיועדת לקהילה הרחבה.</p>
+            </div>
+            <div class="track-card">
+                <h3>גרסה מורחבת (כ-20 דקות)</h3>
+                <p>למי שבוחר להעמיק בסוף השאלון הבסיסי. כוללת שאלות עומק בנושאי עסקים, הוצאות מפורטות, יצירה, בטיחות וכנסים לעומק.</p>
+            </div>
+        </div>
+
+        <div class="raffle-section">
+            <h2>השתתפות בהגרלה ופרסים בשווי 1,000 ש״ח!</h2>
+            <p>בסיום השאלון תוכלו להשאיר כתובת מייל (הנשמרת בנפרד לחלוטין מתשובותיכם לשמירה על אנונימיות) ולהיכנס להגרלה על הפרסים הבאים:</p>
+            <ul class="prizes-list">
+                <li><strong>שובר קנייה על סך 300 ש״ח</strong> לרשת "הממלכה" (שני זוכים)</li>
+                <li><strong>ערכת "חרבות וכשפים" מלאה</strong> (הערכה האדומה והסגולה יחדיו - שלושה זוכים)</li>
+                <li><strong>ערכת "פאת'פיינדר: עולמות פראיים"</strong> (זוכה אחד)</li>
+            </ul>
+            <div class="privacy-note">
+                הנתונים ינותחו בצורה מצרפת בלבד, ללא פרסום פרטים מזהים של המשתתפים. ניתן לצאת מהסקר בכל עת.
+            </div>
+        </div>
+
+    </main>
+
 </body>
 </html>
