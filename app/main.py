@@ -2,9 +2,9 @@ from fastapi import FastAPI, Request
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from app.database import engine, Base
-import app.models.models  # ייבוא חובה כדי שסנכרון הטבלאות יעבוד
+import app.models.models
 
-# יצירת הטבלאות במסד הנתונים (אם הן עדיין לא קיימות)
+# יצירת הטבלאות במסד הנתונים
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="RPG Community Survey Israel")
@@ -14,12 +14,13 @@ templates = Jinja2Templates(directory="app/templates")
 
 @app.get("/")
 async def home(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    # שימוש בתחביר המעודכן לגרסאות החדשות של FastAPI
+    return templates.TemplateResponse(request=request, name="index.html")
 
 @app.get("/survey")
 async def survey(request: Request):
-    return templates.TemplateResponse("survey.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="survey.html")
 
 @app.get("/admin")
 async def admin(request: Request):
-    return templates.TemplateResponse("admin.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="admin.html")
