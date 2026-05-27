@@ -9,7 +9,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from dotenv import load_dotenv
 
-from database import engine, get_db, Base
+from database import engine, get_db, Base, SessionLocal
 from models import IdHash, SurveySession
 from utils import (
     validate_israeli_id, hash_value, hash_ip,
@@ -24,25 +24,33 @@ app = FastAPI(title="סקר קהילת משחקי תפקידים בישראל")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
+def get_client_ip(request: Request) -> str:
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
 @app.on_event("startup")
 def startup():
     Base.metadata.create_all(bind=engine)
-    db = next(get_db())
-    cutoff = datetime.utcnow() - timedelta(days=30)
-    db.query(SurveySession).filter(
-        SurveySession.submitted == False,
-        SurveySession.created_at < cutoff
-    ).delete()
-    db.commit()
-    db.close()
+    db = SessionLocal()
+    try:
+        cutoff = datetime.utcnow() - timedelta(days=30)
+        db.query(SurveySession).filter(
+            SurveySession.is_submitted == False,
+            SurveySession.created_at < cutoff
+        ).delete()
+        db.commit()
+    finally:
+        db.close()
 
 def _get_session(request: Request, db: Session, session_id: Optional[str]) -> Optional[SurveySession]:
-    ip_hash = hash_ip(request.client.host)
+    ip_hash = hash_ip(get_client_ip(request))
     if session_id:
-        s = db.query(SurveySession).filter_by(id=session_id, submitted=False).first()
+        s = db.query(SurveySession).filter_by(id=session_id, is_submitted=False).first()
         if s:
             return s
-    return db.query(SurveySession).filter_by(ip_hash=ip_hash, submitted=False)\
+    return db.query(SurveySession).filter_by(ip_hash=ip_hash, is_submitted=False)\
              .order_by(SurveySession.created_at.desc()).first()
 
 def _require(request, db, session_id):
@@ -131,7 +139,7 @@ async def demographics_submit(
     active = determine_active_sections(roles)
     s1 = json.dumps({"dob": dob, "dob_prefer_not": bool(dob_prefer_not),
                      "region": region, "city": city, "roles": roles}, ensure_ascii=False)
-    ip_hash = hash_ip(request.client.host)
+    ip_hash = hash_ip(get_client_ip(request))
 
     sess = _get_session(request, db, session_id)
     if not sess:
@@ -172,9 +180,8 @@ async def choose_version_submit(request: Request, version: str = Form(...),
     sess.survey_type = version
     active = json.loads(sess.active_sections or "[]")
     
-    # ── התיקון: סינון פרקים בגרסה הקצרה ──
     if version == "short":
-        sections_to_remove = ["section7", "section9"] # חנויות ונשירה נמחקים מהמסלול
+        sections_to_remove = ["section7", "section9"] 
         active = [s for s in active if s not in sections_to_remove]
         sess.active_sections = json.dumps(active)
 
@@ -238,7 +245,7 @@ async def submit_post(request: Request, lottery_email: Optional[str] = Form(defa
     if r: return r
     if pending_id_hash and not db.query(IdHash).filter_by(id_hash=pending_id_hash).first():
         db.add(IdHash(id_hash=pending_id_hash))
-    sess.submitted = True
+    sess.is_submitted = True
     sess.updated_at = datetime.utcnow()
     db.commit()
     resp = templates.TemplateResponse("survey/complete.html", {"request": request, "lottery_email": lottery_email})
@@ -248,7 +255,7 @@ async def submit_post(request: Request, lottery_email: Optional[str] = Form(defa
 
 @app.post("/survey/delete")
 async def delete_survey(request: Request, db: Session = Depends(get_db)):
-    ip_hash = hash_ip(request.client.host)
+    ip_hash = hash_ip(get_client_ip(request))
     for s in db.query(SurveySession).filter_by(ip_hash=ip_hash).all():
         db.delete(s)
     db.commit()
@@ -259,15 +266,15 @@ async def delete_survey(request: Request, db: Session = Depends(get_db)):
 
 @app.post("/survey/resume")
 async def resume(request: Request, action: str = Form(...), session_id: Optional[str] = Cookie(default=None), db: Session = Depends(get_db)):
-    ip_hash = hash_ip(request.client.host)
+    ip_hash = hash_ip(get_client_ip(request))
     if action == "new":
-        for s in db.query(SurveySession).filter_by(ip_hash=ip_hash, submitted=False).all():
+        for s in db.query(SurveySession).filter_by(ip_hash=ip_hash, is_submitted=False).all():
             db.delete(s)
         db.commit()
         resp = RedirectResponse("/survey", status_code=303)
         resp.delete_cookie("session_id")
         return resp
-    sess = db.query(SurveySession).filter_by(ip_hash=ip_hash, submitted=False).order_by(SurveySession.created_at.desc()).first()
+    sess = db.query(SurveySession).filter_by(ip_hash=ip_hash, is_submitted=False).order_by(SurveySession.created_at.desc()).first()
     if sess:
         return RedirectResponse(f"/survey/{sess.current_section or 'section2'}", status_code=303)
     return RedirectResponse("/survey", status_code=303)
@@ -281,8 +288,8 @@ async def admin_post(request: Request, password: str = Form(...), db: Session = 
     if password != ADMIN_PASSWORD:
         return templates.TemplateResponse("admin/login.html", {"request": request, "error": "סיסמה שגויה"})
     total     = db.query(SurveySession).count()
-    submitted = db.query(SurveySession).filter_by(submitted=True).count()
-    sessions  = db.query(SurveySession).filter_by(submitted=True).all()
+    submitted = db.query(SurveySession).filter_by(is_submitted=True).count()
+    sessions  = db.query(SurveySession).filter_by(is_submitted=True).all()
     region_counts = {}
     for s in sessions:
         if s.section1:
