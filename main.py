@@ -31,24 +31,30 @@ def get_client_ip(request: Request) -> str:
 
 @app.on_event("startup")
 def startup():
-    # מנגנון ריפוי עצמי למסד הנתונים
     db = SessionLocal()
     try:
-        # בודק האם הטבלה מעודכנת על ידי ניסיון שליפה של עמודה חדשה
+        # בודק אם הטבלה מעודכנת לפי העמודה החדשה section1
         db.execute(text("SELECT section1 FROM survey_sessions LIMIT 1"))
         db.commit()
     except Exception:
-        # אם העמודה לא קיימת, הוא מוחק את הטבלאות הישנות ובונה מחדש
         db.rollback()
-        print("Old database schema detected. Dropping old tables to recreate...")
-        Base.metadata.drop_all(bind=engine)
+        print("Old schema detected! Forcing CASCADE drop to remove Foreign Key locks...")
+        try:
+            # מחיקה כפויה שחותכת את כל החיבורים מהטבלאות הישנות!
+            db.execute(text("DROP TABLE IF EXISTS survey_sessions CASCADE"))
+            db.execute(text("DROP TABLE IF EXISTS id_hashes CASCADE"))
+            db.execute(text("DROP TABLE IF EXISTS hashed_tzs CASCADE"))
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            print(f"Force drop error: {e}")
     finally:
         db.close()
     
-    # יצירת הטבלאות הנקיות מחדש
+    # בונה את כל הטבלאות בגרסתן החדשה והנקייה
     Base.metadata.create_all(bind=engine)
     
-    # ניקוי סשנים נטושים
+    # ניקוי סשנים בני יותר מחודש
     db = SessionLocal()
     try:
         cutoff = datetime.utcnow() - timedelta(days=30)
