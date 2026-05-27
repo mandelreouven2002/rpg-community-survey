@@ -1,54 +1,63 @@
 :root {
-  --brand: #1a2e4a;
-  --gold:  #c9a227;
-  --light: #f5f0e8;
-  --text:  #1c1c1c;
-  --error: #c0392b;
-  --radius: 10px;
+    --primary: #2c3e50;
+    --secondary: #34495e;
+    --accent: #e74c3c;
+    --accent-hover: #c0392b;
+    --bg: #f4f7f6;
+    --card-bg: #ffffff;
+    --border: #e0e6ed;
+    --text: #2c3e50;
+    --text-light: #7f8c8d;
 }
-* { box-sizing: border-box; margin: 0; padding: 0; }
-html { direction: rtl; font-family: 'Segoe UI', Arial, sans-serif; background: var(--light); color: var(--text); }
-body { min-height: 100vh; display: flex; flex-direction: column; }
-nav { background: var(--brand); color: white; padding: 12px 24px; display: flex; align-items: center; gap: 16px; }
-nav img { height: 40px; }
-nav a { color: var(--gold); text-decoration: none; font-weight: bold; }
-.container { max-width: 720px; margin: 32px auto; padding: 0 16px; flex: 1; }
-.card { background: white; border-radius: var(--radius); padding: 28px 32px; box-shadow: 0 2px 12px rgba(0,0,0,.08); margin-bottom: 24px; }
-.card h1 { color: var(--brand); margin-bottom: 16px; font-size: 1.6rem; }
-.card h2 { color: var(--brand); margin-bottom: 12px; font-size: 1.2rem; }
-.form-group { margin-bottom: 20px; }
-label { display: block; font-weight: 600; margin-bottom: 6px; }
-input[type=text], input[type=date], input[type=email], input[type=number], select, textarea { width: 100%; padding: 10px 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 1rem; }
-input[type=text]:focus, input[type=date]:focus, select:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 2px rgba(201,162,39,.2); }
-.checkbox-group { display: flex; flex-direction: column; gap: 8px; }
-.checkbox-group label, .radio-group label { font-weight: normal; display: flex; align-items: center; gap: 8px; cursor: pointer; }
-.radio-group { display: flex; flex-direction: column; gap: 8px; }
-.scale-group { display: flex; gap: 10px; flex-wrap: wrap; }
-.scale-group label { display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; min-width: 56px; text-align: center; font-size: .85rem; font-weight: normal; }
-.other-input { margin-top: 6px; display: none; }
+
+body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg); margin:0; padding:0; color: var(--text); padding-bottom: 80px; direction: rtl;}
+
+/* סרגל עליון */
+.top-bar { position: sticky; top: 0; background: var(--card-bg); padding: 15px 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); z-index: 100; display: flex; align-items: center; justify-content: space-between; margin-bottom: 30px;}
+.back-btn { background: none; border: none; color: var(--primary); font-size: 16px; cursor: pointer; display: flex; align-items: center; gap: 5px; font-weight: bold;}
+.back-btn:hover { color: var(--accent); }
+.progress-container { flex-grow: 1; margin: 0 20px; background: var(--border); height: 8px; border-radius: 10px; overflow: hidden; }
+.progress-bar { height: 100%; background: var(--accent); transition: width 0.4s ease; }
+.step-text { font-size: 14px; color: var(--text-light); font-weight: bold; min-width: 80px; text-align: left;}
+
+/* תוכן ושאלות */
+.container { max-width: 800px; margin: 0 auto; background: var(--card-bg); padding: 40px; border-radius: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.04); animation: fadeIn 0.4s ease-out;}
+@keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+
+h1, h2 { color: var(--primary); border-bottom: 3px solid var(--accent); padding-bottom: 12px; margin-top: 0; font-size: 1.8em; margin-bottom: 30px;}
+
+.form-group { margin-bottom: 35px; }
+label { font-weight: bold; display: block; margin-bottom: 15px; font-size: 1.15em; color: var(--primary);}
+input[type="text"], input[type="date"], input[type="number"], input[type="email"], select, textarea { width: 100%; padding: 14px; border: 2px solid var(--border); border-radius: 8px; box-sizing: border-box; font-family: inherit; font-size: 16px; transition: border-color 0.2s;}
+input[type="text"]:focus, select:focus { border-color: var(--primary); outline: none; }
+
+/* כרטיסיות מודרניות */
+.checkbox-group, .radio-group, .scale-group { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.checkbox-group label, .radio-group label, .scale-group label { border: 2px solid var(--border); border-radius: 8px; padding: 12px 15px; cursor: pointer; display: flex; align-items: center; transition: all 0.2s ease; background: var(--card-bg); font-size: 15px; font-weight: normal; margin:0;}
+.checkbox-group label:hover, .radio-group label:hover, .scale-group label:hover { border-color: var(--primary); background: #f8fbfb; }
+.checkbox-group input, .radio-group input, .scale-group input { margin-left: 12px; transform: scale(1.2); cursor: pointer;}
+.checkbox-group label.selected, .radio-group label.selected, .scale-group label.selected { border-color: var(--accent); background: #fff5f4; font-weight: bold;}
+
+.other-input { margin-top: 12px; display: none; }
 .other-input.visible { display: block; }
-.btn { display: inline-block; padding: 11px 28px; border-radius: 6px; font-size: 1rem; font-weight: bold; cursor: pointer; border: none; text-decoration: none; transition: opacity .15s; }
-.btn-primary { background: var(--brand); color: white; }
-.btn-gold    { background: var(--gold);  color: var(--brand); }
-.btn-danger  { background: var(--error); color: white; }
-.btn:hover   { opacity: .85; }
-.btn-row     { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
-.section-nav { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 20px; }
-.section-nav a, .section-nav span { padding: 4px 12px; border-radius: 20px; font-size: .82rem; font-weight: 600; text-decoration: none; }
-.section-nav .done  { background: #d4edda; color: #155724; }
-.section-nav .current { background: var(--brand); color: white; }
-.section-nav .pending { background: #e9ecef; color: #666; }
-.error-msg { background: #fdecea; color: var(--error); padding: 10px 14px; border-radius: 6px; margin-bottom: 16px; }
-.hero { background: linear-gradient(135deg, var(--brand) 60%, #2a4a6e); color: white; text-align: center; padding: 56px 24px; }
+
+/* כפתורים */
+.btn { background-color: var(--accent); color: white; border: none; padding: 16px 30px; font-size: 18px; border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold; transition: background 0.3s, transform 0.1s; text-align:center; display:block; text-decoration:none;}
+.btn:hover { background-color: var(--accent-hover); transform: translateY(-2px);}
+.btn-danger { background-color: var(--secondary); margin-top: 10px;}
+.btn-danger:hover { background-color: #2c3e50; }
+
+.error-msg { background: #fdecea; color: var(--accent); padding: 10px 14px; border-radius: 6px; margin-bottom: 16px; font-weight:bold;}
+
+#reset-btn { position: fixed; bottom: 20px; right: 20px; background-color: var(--secondary); color: white; border: none; padding: 12px 20px; border-radius: 50px; cursor: pointer; z-index: 1000; box-shadow: 0 4px 10px rgba(0,0,0,0.2); font-weight: bold;}
+#reset-btn:hover { background-color: var(--accent); }
+
+/* עמוד בית */
+.hero { background: var(--primary); color: white; text-align: center; padding: 56px 24px; margin-bottom: 30px; }
 .hero img { height: 80px; margin-bottom: 16px; }
-.hero h1  { font-size: 2rem; margin-bottom: 12px; }
+.hero h1  { font-size: 2rem; margin-bottom: 12px; border: none; color: white;}
 .hero p   { font-size: 1.1rem; opacity: .88; max-width: 540px; margin: 0 auto 24px; }
-.prizes   { background: white; border-radius: var(--radius); padding: 20px; margin: 24px auto; max-width: 500px; color: var(--brand); text-align: right; }
-.prizes h3 { color: var(--gold); margin-bottom: 10px; }
-.prizes ul { padding-right: 20px; }
+.prizes { background: rgba(255,255,255,0.1); border-radius: 12px; padding: 20px; margin: 24px auto; max-width: 500px; color: white; border: 1px solid rgba(255,255,255,0.2);}
+.prizes h3 { color: #f1c40f; margin-bottom: 10px; border:none; padding:0;}
+.prizes ul { padding-right: 20px; text-align: right; }
 .prizes li { margin-bottom: 6px; }
-.delete-btn-wrapper { position: fixed; bottom: 20px; left: 20px; z-index: 999; }
-.delete-btn-wrapper form { margin: 0; }
-.delete-btn-wrapper button { background: rgba(192,57,43,.12); border: 1px solid var(--error); color: var(--error); border-radius: 6px; padding: 7px 14px; font-size: .82rem; cursor: pointer; }
-.delete-btn-wrapper button:hover { background: var(--error); color: white; }
-footer { text-align: center; padding: 16px; font-size: .82rem; color: #888; }

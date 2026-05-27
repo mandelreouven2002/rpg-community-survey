@@ -1,26 +1,8 @@
-{% extends "base.html" %}
-{% block delete_btn %}{% endblock %}
-{% block content %}
-<div class="container">
-  <div class="card">
-    <h1>בחירת גרסת השאלון</h1>
-    <p>על בסיס מה שסימנת, ישנם <strong>{{ num_sections }}</strong> חלקים שרלוונטיים עבורך.</p>
-    <p style="margin-top:12px">באיזו גרסה תרצה/י לענות?</p>
-    <form method="post" action="/survey/choose-version" style="margin-top:20px">
-      <div class="radio-group">
-        <label style="font-weight:normal;padding:14px;border:1px solid #ddd;border-radius:8px;margin-bottom:10px;cursor:pointer">
-          <input type="radio" name="version" value="short" required>
-          <strong>גרסה קצרה (8–12 דקות)</strong><br>
-          <span style="font-size:.9rem;color:#555">~45–55 שאלות עם התניות — מומלץ לרוב המשיבים</span>
-        </label>
-        <label style="font-weight:normal;padding:14px;border:1px solid #ddd;border-radius:8px;cursor:pointer">
-          <input type="radio" name="version" value="long">
-          <strong>גרסה מורחבת (20 דקות)</strong><br>
-          <span style="font-size:.9rem;color:#555">שאלות נוספות לעומק — עסקים, יצירה, בטיחות, כנסים</span>
-        </label>
-      </div>
-      <button type="submit" class="btn btn-primary" style="margin-top:20px">התחל/י</button>
-    </form>
-  </div>
+{% extends "base.html" %}{% block delete_btn %}{% endblock %}{% block content %}
+<div class="top-bar">
+    <button type="button" class="back-btn" onclick="window.history.back()">➔ חזור</button>
+    <div class="progress-container"><div class="progress-bar" style="width: 20%"></div></div>
+    <div class="step-text">מסלול</div>
 </div>
+<div class="container"><div class="card"><h1>בחירת גרסת השאלון</h1><p style="color:var(--text-light); margin-bottom:20px;">על בסיס מה שסימנת, בנינו עבורך את השאלון. באיזו רמת פירוט תרצה/י לענות?</p><form method="post" action="/survey/choose-version" style="margin-top:20px"><div class="radio-group" style="grid-template-columns: 1fr 1fr;"><label style="display:block; text-align:center; padding:30px;"><input type="radio" name="version" value="short" required style="display:none;"><h3 style="color:var(--primary); margin:0 0 10px 0; border:none;">הגרסה הקצרה</h3><p style="margin:0; color:var(--text-light);">8–12 דקות</p></label><label style="display:block; text-align:center; padding:30px;"><input type="radio" name="version" value="long" style="display:none;"><h3 style="color:var(--primary); margin:0 0 10px 0; border:none;">הגרסה המורחבת</h3><p style="margin:0; color:var(--text-light);">20 דקות</p></label></div><button type="submit" class="btn btn-primary" style="margin-top:30px">התחל/י</button></form></div></div>
 {% endblock %}

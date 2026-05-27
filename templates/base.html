@@ -8,23 +8,35 @@
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-<nav>
-  <a href="/"><img src="https://gate.roleplay.top/full-logo.png" alt="שער המשחקים" onerror="this.style.display='none'"></a>
-  <a href="/">דף הבית</a>
-  <a href="/survey">השאלון</a>
-</nav>
 
 {% block content %}{% endblock %}
 
 {% block delete_btn %}
 <div class="delete-btn-wrapper">
-  <form method="post" action="/survey/delete"
-        onsubmit="return confirm('האם למחוק את כל הנתונים שלך מהמערכת?')">
-    <button type="submit">🗑 מחק את כל הנתונים שלי</button>
+  <form method="post" action="/survey/delete" onsubmit="return confirm('האם למחוק את כל הנתונים שלך מהמערכת?')">
+    <button type="submit" id="reset-btn">🗑 מחק את כל הנתונים שלי</button>
   </form>
 </div>
 {% endblock %}
 
-<footer>© 2025 דוח הקהילה השנתי למשחקי תפקידים בישראל</footer>
+<script>
+// סקריפט חכם שמעדכן את העיצוב של הכרטיסיות (כפתורי רדיו וצ'קבוקסים) ברגע שלוחצים עליהם
+function updateCardStyles() {
+    document.querySelectorAll('.checkbox-group label, .radio-group label, .scale-group label').forEach(lbl => {
+        const input = lbl.querySelector('input');
+        if(input && input.checked) {
+            lbl.classList.add('selected');
+        } else {
+            lbl.classList.remove('selected');
+        }
+    });
+}
+document.addEventListener('change', function(e) {
+    if(e.target.tagName === 'INPUT' && (e.target.type === 'radio' || e.target.type === 'checkbox')) {
+        updateCardStyles();
+    }
+});
+window.addEventListener('DOMContentLoaded', updateCardStyles);
+</script>
 </body>
 </html>

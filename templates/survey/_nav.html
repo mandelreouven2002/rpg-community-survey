@@ -1,15 +1,10 @@
 {% macro section_nav(active, current, session, SECTION_LABELS) %}
-<div class="section-nav">
-  {% for s in active %}
-    {% set label = SECTION_LABELS.get(s, s) %}
-    {% set sec_data = session[s] if session and s in session.__dict__ else None %}
-    {% if s == current %}
-      <span class="current">{{ label }}</span>
-    {% elif sec_data %}
-      <a href="/survey/{{ s }}" class="done">✓ {{ label }}</a>
-    {% else %}
-      <span class="pending">{{ label }}</span>
-    {% endif %}
-  {% endfor %}
+{% set total = active|length %}
+{% set current_idx = active.index(current) if current in active else 0 %}
+{% set percent = ((current_idx) / total * 100)|round %}
+<div class="top-bar">
+    <button type="button" class="back-btn" onclick="window.history.back()">➔ חזור</button>
+    <div class="progress-container"><div class="progress-bar" style="width: {{ percent }}%"></div></div>
+    <div class="step-text">שלב {{ current_idx + 1 }} מתוך {{ total }}</div>
 </div>
 {% endmacro %}
