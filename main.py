@@ -24,7 +24,18 @@ app = FastAPI(title="סקר קהילת משחקי תפקידים בישראל")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
+# ==========================================
+# פונקציות עזר - חסינות לתקלות גרסה וזיהוי ענן
+# ==========================================
+def render(request: Request, name: str, **kwargs):
+    """
+    פונקציית עזר שפותרת את שגיאת ה-500 בגרסאות החדשות של FastAPI
+    """
+    kwargs["request"] = request
+    return templates.TemplateResponse(request=request, name=name, context=kwargs)
+
 def get_client_ip(request: Request) -> str:
+    """זיהוי IP אמיתי גם מאחורי ה-Load Balancer של Railway"""
     forwarded = request.headers.get("x-forwarded-for")
     if forwarded:
         return forwarded.split(",")[0].strip()
@@ -65,7 +76,7 @@ def health():
 
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
-    return templates.TemplateResponse("home.html", {"request": request})
+    return render(request, "home.html")
 
 @app.get("/survey", response_class=HTMLResponse)
 def survey_start(request: Request,
@@ -73,45 +84,35 @@ def survey_start(request: Request,
                  db: Session = Depends(get_db)):
     existing = _get_session(request, db, session_id)
     if existing and existing.section1:
-        return templates.TemplateResponse("survey/resume.html", {
-            "request": request, "session": existing,
-            "SECTION_LABELS": SECTION_LABELS
-        })
-    return templates.TemplateResponse("survey/consent.html", {"request": request})
+        return render(request, "survey/resume.html", session=existing, SECTION_LABELS=SECTION_LABELS)
+    return render(request, "survey/consent.html")
 
 @app.post("/survey/consent")
 async def survey_consent(request: Request, consent: str = Form(...)):
     if consent != "yes":
-        return templates.TemplateResponse("survey/ended.html",
-            {"request": request, "reason": "תודה על הזמן שלך. השאלון הסתיים."})
+        return render(request, "survey/ended.html", reason="תודה על הזמן שלך. השאלון הסתיים.")
     return RedirectResponse("/survey/identity", status_code=303)
 
 @app.get("/survey/identity", response_class=HTMLResponse)
 def identity_form(request: Request):
-    return templates.TemplateResponse("survey/identity.html", {"request": request, "error": None})
+    return render(request, "survey/identity.html", error=None)
 
 @app.post("/survey/identity")
 async def identity_submit(request: Request, id_number: str = Form(...),
                           db: Session = Depends(get_db)):
     id_number = id_number.strip()
     if not validate_israeli_id(id_number):
-        return templates.TemplateResponse("survey/identity.html", {
-            "request": request,
-            "error": "מספר תעודת הזהות אינו תקין. אנא בדוק/י ונסה/י שוב."
-        })
+        return render(request, "survey/identity.html", error="מספר תעודת הזהות אינו תקין. אנא בדוק/י ונסה/י שוב.")
     hashed = hash_value(id_number.zfill(9))
     if db.query(IdHash).filter_by(id_hash=hashed).first():
-        return templates.TemplateResponse("survey/identity.html", {
-            "request": request,
-            "error": "תעודת זהות זו כבר שימשה למילוי השאלון. לא ניתן למלא יותר מפעם אחת."
-        })
+        return render(request, "survey/identity.html", error="תעודת זהות זו כבר שימשה למילוי השאלון. לא ניתן למלא יותר מפעם אחת.")
     resp = RedirectResponse("/survey/demographics", status_code=303)
     resp.set_cookie("pending_id_hash", hashed, httponly=True, max_age=3600)
     return resp
 
 @app.get("/survey/demographics", response_class=HTMLResponse)
 def demographics_form(request: Request):
-    return templates.TemplateResponse("survey/demographics.html", {"request": request, "error": None})
+    return render(request, "survey/demographics.html", error=None)
 
 @app.post("/survey/demographics")
 async def demographics_submit(
@@ -127,14 +128,9 @@ async def demographics_submit(
     if not dob_prefer_not and dob:
         age = calculate_age(dob)
         if age is not None and age < 13:
-            return templates.TemplateResponse("survey/ended.html", {
-                "request": request,
-                "reason": "השאלון מיועד לבני 13 ומעלה. תודה על הזמן שלך."
-            })
+            return render(request, "survey/ended.html", reason="השאלון מיועד לבני 13 ומעלה. תודה על הזמן שלך.")
     if not roles:
-        return templates.TemplateResponse("survey/demographics.html", {
-            "request": request, "error": "אנא בחר/י לפחות תפקיד אחד."
-        })
+        return render(request, "survey/demographics.html", error="אנא בחר/י לפחות תפקיד אחד.")
 
     active = determine_active_sections(roles)
     s1 = json.dumps({"dob": dob, "dob_prefer_not": bool(dob_prefer_not),
@@ -165,9 +161,7 @@ def choose_version(request: Request,
     if not sess:
         return RedirectResponse("/survey")
     active = json.loads(sess.active_sections or "[]")
-    return templates.TemplateResponse("survey/choose_version.html", {
-        "request": request, "num_sections": len(active)
-    })
+    return render(request, "survey/choose_version.html", num_sections=len(active))
 
 @app.post("/survey/choose-version")
 async def choose_version_submit(request: Request, version: str = Form(...),
@@ -195,12 +189,10 @@ def _make_section(num: str):
     async def get_handler(request: Request, session_id: Optional[str] = Cookie(default=None), db: Session = Depends(get_db)):
         sess, r = _require(request, db, session_id)
         if r: return r
-        return templates.TemplateResponse(f"survey/section{num}.html", {
-            "request": request, "session": sess,
-            "data": json.loads(getattr(sess, f"section{num}") or "{}"),
-            "active": json.loads(sess.active_sections or "[]"),
-            "SECTION_LABELS": SECTION_LABELS
-        })
+        return render(request, f"survey/section{num}.html", session=sess,
+            data=json.loads(getattr(sess, f"section{num}") or "{}"),
+            active=json.loads(sess.active_sections or "[]"),
+            SECTION_LABELS=SECTION_LABELS)
 
     async def post_handler(request: Request, session_id: Optional[str] = Cookie(default=None), db: Session = Depends(get_db)):
         sess, r = _require(request, db, session_id)
@@ -232,10 +224,7 @@ for _n in ["2", "3", "4", "5", "6", "7", "8", "9"]:
 def submit_get(request: Request, session_id: Optional[str] = Cookie(default=None), db: Session = Depends(get_db)):
     sess, r = _require(request, db, session_id)
     if r: return r
-    return templates.TemplateResponse("survey/submit.html", {
-        "request": request, "session": sess,
-        "active": json.loads(sess.active_sections or "[]"), "SECTION_LABELS": SECTION_LABELS
-    })
+    return render(request, "survey/submit.html", session=sess, active=json.loads(sess.active_sections or "[]"), SECTION_LABELS=SECTION_LABELS)
 
 @app.post("/survey/submit")
 async def submit_post(request: Request, lottery_email: Optional[str] = Form(default=None),
@@ -248,7 +237,7 @@ async def submit_post(request: Request, lottery_email: Optional[str] = Form(defa
     sess.is_submitted = True
     sess.updated_at = datetime.utcnow()
     db.commit()
-    resp = templates.TemplateResponse("survey/complete.html", {"request": request, "lottery_email": lottery_email})
+    resp = render(request, "survey/complete.html", lottery_email=lottery_email)
     resp.delete_cookie("session_id")
     resp.delete_cookie("pending_id_hash")
     return resp
@@ -281,12 +270,12 @@ async def resume(request: Request, action: str = Form(...), session_id: Optional
 
 @app.get("/admin", response_class=HTMLResponse)
 def admin_login(request: Request):
-    return templates.TemplateResponse("admin/login.html", {"request": request, "error": None})
+    return render(request, "admin/login.html", error=None)
 
 @app.post("/admin", response_class=HTMLResponse)
 async def admin_post(request: Request, password: str = Form(...), db: Session = Depends(get_db)):
     if password != ADMIN_PASSWORD:
-        return templates.TemplateResponse("admin/login.html", {"request": request, "error": "סיסמה שגויה"})
+        return render(request, "admin/login.html", error="סיסמה שגויה")
     total     = db.query(SurveySession).count()
     submitted = db.query(SurveySession).filter_by(is_submitted=True).count()
     sessions  = db.query(SurveySession).filter_by(is_submitted=True).all()
@@ -295,7 +284,4 @@ async def admin_post(request: Request, password: str = Form(...), db: Session = 
         if s.section1:
             r = json.loads(s.section1).get("region", "לא ידוע")
             region_counts[r] = region_counts.get(r, 0) + 1
-    return templates.TemplateResponse("admin/dashboard.html", {
-        "request": request, "total": total, "submitted": submitted,
-        "in_progress": total - submitted, "region_counts": region_counts,
-    })
+    return render(request, "admin/dashboard.html", total=total, submitted=submitted, in_progress=total-submitted, region_counts=region_counts)
