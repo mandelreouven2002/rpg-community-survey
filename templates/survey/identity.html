@@ -1,35 +1,5 @@
-{% extends "base.html" %}
-{% block delete_btn %}{% endblock %}
-{% block content %}
-<div class="container">
-  <div class="card">
-    <h1>תעודת זהות</h1>
-    <p>מספר תעודת הזהות נאסף אך ורק כדי לוודא שכל אדם ממלא את השאלון פעם אחת. הוא יישמר מוצפן ולא יהיה קישור בינו לבין שאר תשובותיך.</p>
-    {% if error %}
-    <div class="error-msg">{{ error }}</div>
-    {% endif %}
-    <form method="post" action="/survey/identity" style="margin-top:16px">
-      <div class="form-group">
-        <label for="id_number">מספר תעודת זהות (9 ספרות)</label>
-        <input type="text" id="id_number" name="id_number" maxlength="9" pattern="\d{5,9}" inputmode="numeric" placeholder="000000000" required autocomplete="off">
-      </div>
-      <button type="submit" class="btn btn-primary">המשך/י</button>
-    </form>
-  </div>
-</div>
-<script>
-document.querySelector('form').addEventListener('submit', function(e) {
-  const val = document.getElementById('id_number').value.trim().padStart(9,'0');
-  let total = 0;
-  for (let i = 0; i < 9; i++) {
-    let v = parseInt(val[i]) * (i % 2 === 0 ? 1 : 2);
-    if (v > 9) v -= 9;
-    total += v;
-  }
-  if (total % 10 !== 0) {
-    e.preventDefault();
-    alert('מספר תעודת הזהות אינו תקין. אנא בדוק/י שוב.');
-  }
-});
-</script>
+{% extends "base.html" %}{% block delete_btn %}{% endblock %}{% block content %}
+<div class="container"><div class="card"><h1>תעודת זהות</h1><p>המספר נאסף אך ורק למניעת כפילויות, נשמר מוצפן ולא מקושר לתשובות.</p>
+{% if error %}<div class="error-msg">{{ error }}</div>{% endif %}
+<form method="post" action="/survey/identity" style="margin-top:16px"><div class="form-group"><label>מספר תעודת זהות (9 ספרות)</label><input type="text" id="id_number" name="id_number" maxlength="9" pattern="\d{5,9}" required autocomplete="off"></div><button type="submit" class="btn btn-primary">המשך/י</button></form></div></div>
 {% endblock %}

@@ -1,43 +1,6 @@
-{% extends "base.html" %}
-{% block content %}
-<div class="container">
-  <div class="card">
-    <h1>חלק 5 — משחקי תפקידים חיים (לארפ)</h1>
-    <form method="post" action="/survey/section5">
-      <div class="form-group">
-        <label>באיזו תדירות אתה/את משתתף/ת בלארפים? *</label>
-        <div class="radio-group">
-          {% for opt in ["מספר פעמים בחודש","פעם בחודש","מספר פעמים בשנה","פעם-פעמיים בשנה","לעיתים נדירות","לא השתתפתי עדיין אבל מעוניין/ת"] %}
-          <label><input type="radio" name="larp_frequency" value="{{ opt }}" required> {{ opt }}</label>
-          {% endfor %}
-        </div>
-      </div>
-      <div class="form-group">
-        <label>באילו סוגי לארפים אתה/את משתתף/ת? (ניתן לבחור כמה)</label>
-        <div class="checkbox-group">
-          {% for opt in ["לארפ גדול (100+ משתתפים)","לארפ בינוני (20–100 משתתפים)","לארפ קטן / קאמרי","Nordic larp","אקשן / לחימה","דרמה / פוליטי","היסטורי","פנטזיה","מד\"ב","אחר"] %}
-          <label><input type="checkbox" name="larp_types" value="{{ opt }}"> {{ opt }}</label>
-          {% endfor %}
-        </div>
-      </div>
-      <div class="form-group">
-        <label>האם אתה/את גם מארגן/ת לארפים? *</label>
-        <div class="radio-group">
-          {% for opt in ["כן, מארגן/ת בקביעות","כן, לעיתים","לא, רק משתתף/ת"] %}
-          <label><input type="radio" name="larp_organizer" value="{{ opt }}" required> {{ opt }}</label>
-          {% endfor %}
-        </div>
-      </div>
-      <div class="form-group">
-        <label>מה הקשיים המרכזיים שלך בתחום הלארפ?</label>
-        <div class="checkbox-group">
-          {% for opt in ["עלות גבוהה","תחבורה","מיעוט אירועים באזורי","חוסר ידע כיצד להיכנס לתחום","חשש חברתי","אין מספיק לארפים בז׳אנר שאני אוהב/ת","אין קושי"] %}
-          <label><input type="checkbox" name="larp_difficulties" value="{{ opt }}"> {{ opt }}</label>
-          {% endfor %}
-        </div>
-      </div>
-      <div class="btn-row"><button type="submit" class="btn btn-primary">שמור/י והמשך/י ←</button></div>
-    </form>
-  </div>
-</div>
+{% extends "base.html" %}{% import "survey/_nav.html" as nav %}{% block content %}
+<div class="container"><div class="card">{{ nav.section_nav(active, 'section5', session, SECTION_LABELS) }}<h1>לארפ</h1>
+<form method="post" action="/survey/section5">
+<div class="form-group"><label>תדירות השתתפות? *</label><div class="radio-group">{% for opt in ["מספר פעמים בחודש","פעם בחודש","מספר פעמים בשנה","לעיתים נדירות"] %}<label><input type="radio" name="larp_frequency" value="{{ opt }}" {% if data.get('larp_frequency')==opt %}checked{% endif %} required> {{ opt }}</label>{% endfor %}</div></div>
+<div class="btn-row"><button type="submit" class="btn btn-primary">שמור/י והמשך/י ←</button></div></form></div></div>
 {% endblock %}

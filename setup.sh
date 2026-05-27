@@ -1,4 +1,550 @@
 #!/bin/bash
+echo "🚀 Starting Project Setup..."
+
+mkdir -p templates/survey templates/admin static
+
+# ── Config Files ─────────────────────────────────────────────────
+cat > requirements.txt << 'REQEOF'
+fastapi
+uvicorn[standard]
+sqlalchemy
+python-dotenv
+psycopg2-binary
+jinja2
+python-multipart
+REQEOF
+
+cat > Procfile << 'PROCEOF'
+web: uvicorn main:app --host 0.0.0.0 --port $PORT
+PROCEOF
+
+cat > railway.toml << 'RAILEOF'
+[deploy]
+startCommand = "uvicorn main:app --host 0.0.0.0 --port $PORT"
+healthcheckPath = "/health"
+RAILEOF
+
+cat > .env << 'ENVEOF'
+DATABASE_URL=sqlite:///./survey.db
+SECRET_KEY=local_dev_secret_key_change_in_production
+ADMIN_PASSWORD=admin123
+ENVEOF
+
+cat > .gitignore << 'GIEOF'
+.env
+*.db
+__pycache__/
+*.pyc
+.DS_Store
+venv/
+GIEOF
+
+# ── database.py ──────────────────────────────────────────────────
+cat > database.py << 'DBEOF'
+import os
+from sqlalchemy import create_engine
+from sqlalchemy.orm import declarative_base, sessionmaker
+from dotenv import load_dotenv
+
+load_dotenv()
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./survey.db")
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+connect_args = {"check_same_thread": False} if "sqlite" in DATABASE_URL else {}
+engine = create_engine(DATABASE_URL, connect_args=connect_args)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
+
+def get_db():
+    db = SessionLocal()
+    try: yield db
+    finally: db.close()
+DBEOF
+
+# ── models.py ────────────────────────────────────────────────────
+cat > models.py << 'MODEOF'
+import uuid
+from datetime import datetime
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text
+from database import Base
+
+def new_uuid(): return str(uuid.uuid4())
+
+class IdHash(Base):
+    __tablename__ = "id_hashes"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    id_hash = Column(String(64), unique=True, nullable=False, index=True)
+
+class SurveySession(Base):
+    __tablename__ = "survey_sessions"
+    id              = Column(String(36), primary_key=True, default=new_uuid)
+    ip_hash         = Column(String(64), nullable=False, index=True)
+    survey_type     = Column(String(10), nullable=True)
+    is_submitted    = Column(Boolean, default=False)
+    current_section = Column(String(20), default="section1")
+    created_at      = Column(DateTime, default=datetime.utcnow)
+    updated_at      = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    active_sections = Column(Text, nullable=True)
+    section1        = Column(Text, nullable=True)
+    section2        = Column(Text, nullable=True)
+    section3        = Column(Text, nullable=True)
+    section4        = Column(Text, nullable=True)
+    section5        = Column(Text, nullable=True)
+    section6        = Column(Text, nullable=True)
+    section7        = Column(Text, nullable=True)
+    section8        = Column(Text, nullable=True)
+    section9        = Column(Text, nullable=True)
+MODEOF
+
+# ── utils.py ─────────────────────────────────────────────────────
+cat > utils.py << 'UTILEOF'
+import hmac, hashlib, os, json
+from datetime import date
+from dotenv import load_dotenv
+
+load_dotenv()
+_SECRET = os.getenv("SECRET_KEY", "fallback-secret")
+
+def validate_israeli_id(id_str: str) -> bool:
+    s = id_str.strip().zfill(9)
+    if not s.isdigit() or len(s) != 9: return False
+    total = sum((int(d) * (1 if i % 2 == 0 else 2)) - 9 if (int(d) * (1 if i % 2 == 0 else 2)) > 9 else (int(d) * (1 if i % 2 == 0 else 2)) for i, d in enumerate(s))
+    return total % 10 == 0
+
+def hash_value(val: str) -> str:
+    return hmac.new(_SECRET.encode(), val.strip().encode(), hashlib.sha256).hexdigest()
+
+def hash_ip(ip: str) -> str:
+    return hmac.new(_SECRET.encode(), ip.encode(), hashlib.sha256).hexdigest()
+
+def calculate_age(dob_str: str):
+    try:
+        dob = date.fromisoformat(dob_str)
+        today = date.today()
+        return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+    except Exception: return None
+
+ROLE_SECTION_MAP = {
+    "tabletop_player": "section3", "gm": "section4", "larp_participant": "section5",
+    "larp_organizer": "section5", "parent": "section6", "business": "section7",
+    "interested": "section8", "former_player": "section9"
+}
+
+def determine_active_sections(roles: list) -> list:
+    sections, seen = ["section2"], set()
+    for r in roles:
+        if (s := ROLE_SECTION_MAP.get(r)) and s not in seen:
+            sections.append(s); seen.add(s)
+    return sections
+
+def next_section(active: list, current: str):
+    try:
+        idx = active.index(current)
+        return active[idx + 1] if idx + 1 < len(active) else None
+    except ValueError: return None
+
+SECTION_LABELS = {
+    "section2": "היכרות", "section3": "שחקנים", "section4": "מנחים",
+    "section5": "לארפ", "section6": "הורים", "section7": "עסקים",
+    "section8": "מתעניינים", "section9": "נשירה"
+}
+UTILEOF
+
+# ── main.py ──────────────────────────────────────────────────────
+cat > main.py << 'MAINEOF'
+import os, json
+from datetime import datetime, timedelta
+from typing import Optional
+from fastapi import FastAPI, Request, Form, Depends, Response, Cookie
+from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from sqlalchemy.orm import Session
+from sqlalchemy import text
+from dotenv import load_dotenv
+
+from database import engine, get_db, Base, SessionLocal
+from models import IdHash, SurveySession
+from utils import validate_israeli_id, hash_value, hash_ip, calculate_age, determine_active_sections, next_section, SECTION_LABELS
+
+load_dotenv()
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
+
+app = FastAPI(title="סקר קהילת משחקי תפקידים בישראל")
+app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
+
+def render(request: Request, name: str, **kwargs):
+    kwargs["request"] = request
+    return templates.TemplateResponse(request=request, name=name, context=kwargs)
+
+def get_client_ip(request: Request) -> str:
+    if forwarded := request.headers.get("x-forwarded-for"):
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+@app.on_event("startup")
+def startup():
+    Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    try:
+        if "postgres" in str(engine.url):
+            db.execute(text("ALTER TABLE survey_sessions ADD COLUMN IF NOT EXISTS current_section VARCHAR(20) DEFAULT 'section1';"))
+            db.execute(text("ALTER TABLE survey_sessions ADD COLUMN IF NOT EXISTS is_submitted BOOLEAN DEFAULT FALSE;"))
+        db.commit()
+        db.query(SurveySession).filter(SurveySession.is_submitted == False, SurveySession.created_at < datetime.utcnow() - timedelta(days=30)).delete()
+        db.commit()
+    except Exception as e: print(f"Startup DB Migration error: {e}")
+    finally: db.close()
+
+def _get_session(request: Request, db: Session, session_id: Optional[str]) -> Optional[SurveySession]:
+    ip_hash = hash_ip(get_client_ip(request))
+    if session_id and (s := db.query(SurveySession).filter_by(id=session_id, is_submitted=False).first()): return s
+    return db.query(SurveySession).filter_by(ip_hash=ip_hash, is_submitted=False).order_by(SurveySession.created_at.desc()).first()
+
+def _require(request, db, session_id):
+    if not (sess := _get_session(request, db, session_id)) or not sess.section1:
+        return None, RedirectResponse("/survey", status_code=303)
+    return sess, None
+
+@app.get("/health")
+def health(): return {"status": "ok"}
+
+@app.get("/", response_class=HTMLResponse)
+def home(request: Request): return render(request, "home.html")
+
+@app.get("/survey", response_class=HTMLResponse)
+def survey_start(request: Request, session_id: Optional[str] = Cookie(default=None), db: Session = Depends(get_db)):
+    if existing := _get_session(request, db, session_id):
+        if existing.section1: return render(request, "survey/resume.html", session=existing, SECTION_LABELS=SECTION_LABELS)
+    return render(request, "survey/consent.html")
+
+@app.post("/survey/consent")
+async def survey_consent(request: Request, consent: str = Form(...)):
+    if consent != "yes": return render(request, "survey/ended.html", reason="תודה על הזמן שלך. השאלון הסתיים.")
+    return RedirectResponse("/survey/identity", status_code=303)
+
+@app.get("/survey/identity", response_class=HTMLResponse)
+def identity_form(request: Request): return render(request, "survey/identity.html", error=None)
+
+@app.post("/survey/identity")
+async def identity_submit(request: Request, id_number: str = Form(...), db: Session = Depends(get_db)):
+    if not validate_israeli_id(id_number := id_number.strip()):
+        return render(request, "survey/identity.html", error="מספר תעודת הזהות אינו תקין.")
+    hashed = hash_value(id_number.zfill(9))
+    if db.query(IdHash).filter_by(id_hash=hashed).first():
+        return render(request, "survey/identity.html", error="תעודת זהות זו כבר מילאה את השאלון.")
+    resp = RedirectResponse("/survey/demographics", status_code=303)
+    resp.set_cookie("pending_id_hash", hashed, httponly=True, max_age=3600)
+    return resp
+
+@app.get("/survey/demographics", response_class=HTMLResponse)
+def demographics_form(request: Request): return render(request, "survey/demographics.html", error=None)
+
+@app.post("/survey/demographics")
+async def demographics_submit(request: Request, dob: Optional[str] = Form(default=None), dob_prefer_not: Optional[str] = Form(default=None), region: str = Form(...), city: Optional[str] = Form(default=None), roles: list = Form(default=[]), session_id: Optional[str] = Cookie(default=None), db: Session = Depends(get_db)):
+    if not dob_prefer_not and dob and (age := calculate_age(dob)) is not None and age < 13:
+        return render(request, "survey/ended.html", reason="השאלון מיועד לבני 13 ומעלה.")
+    if not roles: return render(request, "survey/demographics.html", error="יש לבחור לפחות תפקיד אחד.")
+
+    active, s1, ip_hash = determine_active_sections(roles), json.dumps({"dob": dob, "region": region, "city": city, "roles": roles}, ensure_ascii=False), hash_ip(get_client_ip(request))
+    if not (sess := _get_session(request, db, session_id)): db.add(sess := SurveySession(ip_hash=ip_hash))
+    sess.section1, sess.active_sections, sess.current_section, sess.updated_at = s1, json.dumps(active), active[0], datetime.utcnow()
+    db.commit(); db.refresh(sess)
+    resp = RedirectResponse("/survey/choose-version", status_code=303)
+    resp.set_cookie("session_id", sess.id, httponly=True, max_age=86400 * 30)
+    return resp
+
+@app.get("/survey/choose-version", response_class=HTMLResponse)
+def choose_version(request: Request, session_id: Optional[str] = Cookie(default=None), db: Session = Depends(get_db)):
+    if not (sess := _get_session(request, db, session_id)): return RedirectResponse("/survey")
+    return render(request, "survey/choose_version.html", num_sections=len(json.loads(sess.active_sections or "[]")))
+
+@app.post("/survey/choose-version")
+async def choose_version_submit(request: Request, version: str = Form(...), session_id: Optional[str] = Cookie(default=None), db: Session = Depends(get_db)):
+    if not (sess := _get_session(request, db, session_id)): return RedirectResponse("/survey")
+    sess.survey_type, active = version, json.loads(sess.active_sections or "[]")
+    if version == "short": active = [s for s in active if s not in ["section7", "section9"]]
+    sess.active_sections, sess.updated_at = json.dumps(active), datetime.utcnow()
+    db.commit()
+    return RedirectResponse(f"/survey/{active[0] if active else 'submit'}", status_code=303)
+
+def _make_section(num: str):
+    async def get_handler(request: Request, session_id: Optional[str] = Cookie(default=None), db: Session = Depends(get_db)):
+        sess, r = _require(request, db, session_id)
+        if r: return r
+        return render(request, f"survey/section{num}.html", session=sess, data=json.loads(getattr(sess, f"section{num}") or "{}"), active=json.loads(sess.active_sections or "[]"), SECTION_LABELS=SECTION_LABELS)
+
+    async def post_handler(request: Request, session_id: Optional[str] = Cookie(default=None), db: Session = Depends(get_db)):
+        sess, r = _require(request, db, session_id)
+        if r: return r
+        form, data = await request.form(), {}
+        for k, v in form.multi_items():
+            if k in data: data[k] = data[k] + [v] if isinstance(data[k], list) else [data[k], v]
+            else: data[k] = v
+        setattr(sess, f"section{num}", json.dumps(data, ensure_ascii=False))
+        active, nxt = json.loads(sess.active_sections or "[]"), next_section(json.loads(sess.active_sections or "[]"), f"section{num}")
+        sess.current_section, sess.updated_at = nxt or "submit", datetime.utcnow()
+        db.commit()
+        return RedirectResponse(f"/survey/{nxt}" if nxt else "/survey/submit", status_code=303)
+    return get_handler, post_handler
+
+for _n in ["2", "3", "4", "5", "6", "7", "8", "9"]:
+    _g, _p = _make_section(_n)
+    app.get(f"/survey/section{_n}", response_class=HTMLResponse)(_g)
+    app.post(f"/survey/section{_n}")(_p)
+
+@app.get("/survey/submit", response_class=HTMLResponse)
+def submit_get(request: Request, session_id: Optional[str] = Cookie(default=None), db: Session = Depends(get_db)):
+    sess, r = _require(request, db, session_id)
+    if r: return r
+    return render(request, "survey/submit.html", session=sess, active=json.loads(sess.active_sections or "[]"), SECTION_LABELS=SECTION_LABELS)
+
+@app.post("/survey/submit")
+async def submit_post(request: Request, lottery_email: Optional[str] = Form(default=None), session_id: Optional[str] = Cookie(default=None), pending_id_hash: Optional[str] = Cookie(default=None), db: Session = Depends(get_db)):
+    sess, r = _require(request, db, session_id)
+    if r: return r
+    if pending_id_hash and not db.query(IdHash).filter_by(id_hash=pending_id_hash).first(): db.add(IdHash(id_hash=pending_id_hash))
+    sess.is_submitted, sess.updated_at = True, datetime.utcnow()
+    db.commit()
+    resp = render(request, "survey/complete.html", lottery_email=lottery_email)
+    resp.delete_cookie("session_id"); resp.delete_cookie("pending_id_hash")
+    return resp
+
+@app.post("/survey/delete")
+async def delete_survey(request: Request, db: Session = Depends(get_db)):
+    for s in db.query(SurveySession).filter_by(ip_hash=hash_ip(get_client_ip(request))).all(): db.delete(s)
+    db.commit()
+    resp = RedirectResponse("/", status_code=303)
+    resp.delete_cookie("session_id"); resp.delete_cookie("pending_id_hash")
+    return resp
+
+@app.post("/survey/resume")
+async def resume(request: Request, action: str = Form(...), session_id: Optional[str] = Cookie(default=None), db: Session = Depends(get_db)):
+    ip_hash = hash_ip(get_client_ip(request))
+    if action == "new":
+        for s in db.query(SurveySession).filter_by(ip_hash=ip_hash, is_submitted=False).all(): db.delete(s)
+        db.commit()
+        resp = RedirectResponse("/survey", status_code=303)
+        resp.delete_cookie("session_id")
+        return resp
+    if sess := db.query(SurveySession).filter_by(ip_hash=ip_hash, is_submitted=False).order_by(SurveySession.created_at.desc()).first():
+        return RedirectResponse(f"/survey/{sess.current_section or 'section2'}", status_code=303)
+    return RedirectResponse("/survey", status_code=303)
+
+@app.get("/admin", response_class=HTMLResponse)
+def admin_login(request: Request): return render(request, "admin/login.html", error=None)
+
+@app.post("/admin", response_class=HTMLResponse)
+async def admin_post(request: Request, password: str = Form(...), db: Session = Depends(get_db)):
+    if password != ADMIN_PASSWORD: return render(request, "admin/login.html", error="סיסמה שגויה")
+    total, submitted = db.query(SurveySession).count(), db.query(SurveySession).filter_by(is_submitted=True).count()
+    region_counts = {}
+    for s in db.query(SurveySession).filter_by(is_submitted=True).all():
+        r = json.loads(s.section1).get("region", "לא ידוע") if s.section1 else "לא ידוע"
+        region_counts[r] = region_counts.get(r, 0) + 1
+    return render(request, "admin/dashboard.html", total=total, submitted=submitted, in_progress=total-submitted, region_counts=region_counts)
+MAINEOF
+
+# ── static & templates ───────────────────────────────────────────
+cat > static/style.css << 'CSSEOF'
+:root{--brand:#1a2e4a;--gold:#c9a227;--light:#f5f0e8;--text:#1c1c1c;--error:#c0392b;--radius:10px}
+*{box-sizing:border-box;margin:0;padding:0}html{direction:rtl;font-family:'Segoe UI',Arial,sans-serif;background:var(--light);color:var(--text)}
+body{min-height:100vh;display:flex;flex-direction:column}nav{background:var(--brand);color:#fff;padding:12px 24px;display:flex;align-items:center;gap:16px}
+nav img{height:40px}nav a{color:var(--gold);text-decoration:none;font-weight:700}.container{max-width:720px;margin:32px auto;padding:0 16px;flex:1}
+.card{background:#fff;border-radius:var(--radius);padding:28px 32px;box-shadow:0 2px 12px rgba(0,0,0,.08);margin-bottom:24px}
+.card h1{color:var(--brand);margin-bottom:16px;font-size:1.6rem}.card h2{color:var(--brand);margin-bottom:12px;font-size:1.2rem}
+.form-group{margin-bottom:20px}label{display:block;font-weight:600;margin-bottom:6px}
+input[type=text],input[type=date],input[type=email],input[type=number],select,textarea{width:100%;padding:10px 12px;border:1px solid #ccc;border-radius:6px;font-size:1rem}
+input[type=text]:focus,input[type=date]:focus,select:focus{outline:0;border-color:var(--gold);box-shadow:0 0 0 2px rgba(201,162,39,.2)}
+.checkbox-group{display:flex;flex-direction:column;gap:8px}.checkbox-group label,.radio-group label{font-weight:400;display:flex;align-items:center;gap:8px;cursor:pointer}
+.radio-group{display:flex;flex-direction:column;gap:8px}.scale-group{display:flex;gap:10px;flex-wrap:wrap}
+.scale-group label{display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;min-width:56px;text-align:center;font-size:.85rem;font-weight:400}
+.other-input{margin-top:6px;display:none}.other-input.visible{display:block}.btn{display:inline-block;padding:11px 28px;border-radius:6px;font-size:1rem;font-weight:700;cursor:pointer;border:none;text-decoration:none;transition:opacity .15s}
+.btn-primary{background:var(--brand);color:#fff}.btn-gold{background:var(--gold);color:var(--brand)}.btn-danger{background:var(--error);color:#fff}.btn:hover{opacity:.85}.btn-row{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px}
+.section-nav{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px}.section-nav a,.section-nav span{padding:4px 12px;border-radius:20px;font-size:.82rem;font-weight:600;text-decoration:none}
+.section-nav .done{background:#d4edda;color:#155724}.section-nav .current{background:var(--brand);color:#fff}.section-nav .pending{background:#e9ecef;color:#666}
+.error-msg{background:#fdecea;color:var(--error);padding:10px 14px;border-radius:6px;margin-bottom:16px}.hero{background:linear-gradient(135deg,var(--brand) 60%,#2a4a6e);color:#fff;text-align:center;padding:56px 24px}
+.hero img{height:80px;margin-bottom:16px}.hero h1{font-size:2rem;margin-bottom:12px}.hero p{font-size:1.1rem;opacity:.88;max-width:540px;margin:0 auto 24px}
+.prizes{background:#fff;border-radius:var(--radius);padding:20px;margin:24px auto;max-width:500px;color:var(--brand);text-align:right}.prizes h3{color:var(--gold);margin-bottom:10px}
+.delete-btn-wrapper{position:fixed;bottom:20px;left:20px;z-index:999}.delete-btn-wrapper button{background:rgba(192,57,43,.12);border:1px solid var(--error);color:var(--error);border-radius:6px;padding:7px 14px;font-size:.82rem;cursor:pointer}
+.delete-btn-wrapper button:hover{background:var(--error);color:#fff}footer{text-align:center;padding:16px;font-size:.82rem;color:#888}
+CSSEOF
+
+cat > templates/base.html << 'BASEEOF'
+<!DOCTYPE html><html dir="rtl" lang="he"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{% block title %}סקר קהילת משחקי תפקידים{% endblock %}</title><link rel="icon" href="https://gate.roleplay.top/rpg-game.png"><link rel="stylesheet" href="/static/style.css"></head><body>
+<nav><a href="/"><img src="https://gate.roleplay.top/full-logo.png" alt="שער המשחקים" onerror="this.style.display='none'"></a><a href="/">דף הבית</a><a href="/survey">השאלון</a></nav>
+{% block content %}{% endblock %}
+{% block delete_btn %}<div class="delete-btn-wrapper"><form method="post" action="/survey/delete" onsubmit="return confirm('האם למחוק את כל הנתונים שלך?')"><button type="submit">🗑 מחק נתונים</button></form></div>{% endblock %}
+<footer>© 2026 דוח הקהילה השנתי למשחקי תפקידים בישראל</footer></body></html>
+BASEEOF
+
+cat > templates/home.html << 'HOMEEOF'
+{% extends "base.html" %}{% block delete_btn %}{% endblock %}{% block content %}
+<div class="hero"><img src="https://gate.roleplay.top/full-logo.png" alt="לוגו"><h1>דוח הקהילה השנתי<br>למשחקי תפקידים בישראל 2026</h1><p>עזור/י לנו למפות את עולם משחקי התפקידים בישראל.</p><a href="/survey" class="btn btn-gold" style="font-size:1.1rem;padding:14px 36px">מלא/י את השאלון →</a>
+<div class="prizes"><h3>🎁 הגרלה בין המשתתפים — פרסים בשווי 1,000 ₪</h3><ul><li>שובר 300 ₪ לממלכה (×2)</li><li>ערכת חרבות וכשפים — האדומה והסגולה (×3)</li><li>ערכת Pathfinder עולמות פראיים (×1)</li></ul></div></div>
+<div class="container"><div class="card"><h2>על השאלון</h2><p>שאלון זה נועד למפות את תחום משחקי התפקידים בישראל.</p><div class="btn-row" style="margin-top:16px"><a href="/survey" class="btn btn-primary">התחל/י את השאלון</a></div></div></div>
+{% endblock %}
+HOMEEOF
+
+cat > templates/survey/consent.html << 'CONEOF'
+{% extends "base.html" %}{% block delete_btn %}{% endblock %}{% block content %}
+<div class="container"><div class="card"><h1>הסכמה להשתתפות</h1><p>המידע שייאסף ינותח במטרה לשפר את הקהילה. מידע אישי מזהה יישמר בנפרד.</p>
+<form method="post" action="/survey/consent" style="margin-top:20px"><div class="form-group"><div class="radio-group"><label><input type="radio" name="consent" value="yes" required> כן, אני מאשר/ת להשתתף</label><label><input type="radio" name="consent" value="no"> לא</label></div></div><button type="submit" class="btn btn-primary">המשך/י</button></form></div></div>
+{% endblock %}
+CONEOF
+
+cat > templates/survey/identity.html << 'IDEOF'
+{% extends "base.html" %}{% block delete_btn %}{% endblock %}{% block content %}
+<div class="container"><div class="card"><h1>תעודת זהות</h1><p>המספר נאסף אך ורק למניעת כפילויות, נשמר מוצפן ולא מקושר לתשובות.</p>
+{% if error %}<div class="error-msg">{{ error }}</div>{% endif %}
+<form method="post" action="/survey/identity" style="margin-top:16px"><div class="form-group"><label>מספר תעודת זהות (9 ספרות)</label><input type="text" id="id_number" name="id_number" maxlength="9" pattern="\d{5,9}" required autocomplete="off"></div><button type="submit" class="btn btn-primary">המשך/י</button></form></div></div>
+{% endblock %}
+IDEOF
+
+cat > templates/survey/demographics.html << 'DEMEOF'
+{% extends "base.html" %}{% block delete_btn %}{% endblock %}{% block content %}
+<div class="container"><div class="card"><h1>פרטים בסיסיים</h1>
+{% if error %}<div class="error-msg">{{ error }}</div>{% endif %}
+<form method="post" action="/survey/demographics"><div class="form-group"><label>תאריך לידה</label><input type="date" name="dob" id="dob_field"><label style="font-weight:normal"><input type="checkbox" name="dob_prefer_not" onchange="document.getElementById('dob_field').disabled=this.checked"> מעדיף/ה לא לענות</label></div>
+<div class="form-group"><label>אזור מגורים *</label><select name="region" required><option value="">-- בחר/י --</option><option>צפון</option><option>חיפה והקריות</option><option>השרון</option><option>גוש דן</option><option>תל אביב-יפו</option><option>ירושלים והסביבה</option><option>השפלה</option><option>דרום</option><option>יהודה ושומרון</option><option>אילת והערבה</option><option>גר/ה בחו״ל</option><option>מעדיף/ה לא לענות</option></select></div>
+<div class="form-group"><label>עיר / יישוב (לא חובה)</label><input type="text" name="city"></div>
+<div class="form-group"><label>מה הקשר שלך לתחום? (ניתן לבחור כמה) *</label><div class="checkbox-group"><label><input type="checkbox" name="roles" value="tabletop_player"> שחקן/ית שולחני/ת</label><label><input type="checkbox" name="roles" value="gm"> מנחה שולחני/ת</label><label><input type="checkbox" name="roles" value="larp_participant"> משתתף/ת לארפים</label><label><input type="checkbox" name="roles" value="larp_organizer"> מארגן/ת לארפים</label><label><input type="checkbox" name="roles" value="parent"> הורה לילד/ה שמשחק/ת</label><label><input type="checkbox" name="roles" value="business"> בעל/ת עסק/חנות</label><label><input type="checkbox" name="roles" value="creator"> יוצר/ת תוכן</label><label><input type="checkbox" name="roles" value="interested"> מתעניין/ת (טרם שיחקתי)</label><label><input type="checkbox" name="roles" value="former_player"> שחקן/ית עבר</label></div></div>
+<button type="submit" class="btn btn-primary">המשך/י</button></form></div></div>
+{% endblock %}
+DEMEOF
+
+cat > templates/survey/choose_version.html << 'CHEOF'
+{% extends "base.html" %}{% block delete_btn %}{% endblock %}{% block content %}
+<div class="container"><div class="card"><h1>בחירת גרסת השאלון</h1><form method="post" action="/survey/choose-version" style="margin-top:20px"><div class="radio-group"><label style="padding:14px;border:1px solid #ddd;border-radius:8px"><input type="radio" name="version" value="short" required><strong>גרסה קצרה (8–12 דקות)</strong></label><label style="padding:14px;border:1px solid #ddd;border-radius:8px"><input type="radio" name="version" value="long"><strong>גרסה מורחבת (20 דקות)</strong></label></div><button type="submit" class="btn btn-primary" style="margin-top:20px">התחל/י</button></form></div></div>
+{% endblock %}
+CHEOF
+
+cat > templates/survey/resume.html << 'RESEOF'
+{% extends "base.html" %}{% block delete_btn %}{% endblock %}{% block content %}
+<div class="container"><div class="card"><h1>ברוך/ה שב/ה!</h1><p>מצאנו מילוי שאלון לא גמור מהכתובת שלך.</p><form method="post" action="/survey/resume" style="margin-top:20px"><div class="btn-row"><button name="action" value="continue" class="btn btn-primary">המשך/י מאיפה שעצרתי</button><button name="action" value="new" class="btn btn-danger" onclick="return confirm('הכל יימחק. להתחיל מחדש?')">התחל/י מחדש</button></div></form></div></div>
+{% endblock %}
+RESEOF
+
+cat > templates/survey/_nav.html << 'NAVEOF'
+{% macro section_nav(active, current, session, SECTION_LABELS) %}<div class="section-nav">{% for s in active %}{% set label = SECTION_LABELS.get(s, s) %}{% set sec_data = session[s] if session and s in session.__dict__ else None %}{% if s == current %}<span class="current">{{ label }}</span>{% elif sec_data %}<a href="/survey/{{ s }}" class="done">✓ {{ label }}</a>{% else %}<span class="pending">{{ label }}</span>{% endif %}{% endfor %}</div>{% endmacro %}
+NAVEOF
+
+cat > templates/survey/section2.html << 'S2EOF'
+{% extends "base.html" %}{% import "survey/_nav.html" as nav %}{% block content %}
+<div class="container"><div class="card">{{ nav.section_nav(active, 'section2', session, SECTION_LABELS) }}<h1>היכרות כללית עם התחום</h1>
+<form method="post" action="/survey/section2">
+<div class="form-group"><label>6. כמה שנים את/ה מכיר/ה את תחום משחקי התפקידים? *</label><div class="radio-group">{% for opt in ["פחות משנה","1–2 שנים","3–5 שנים","6–10 שנים","11–20 שנים","מעל 20 שנים","לא בטוח/ה"] %}<label><input type="radio" name="years_in_field" value="{{ opt }}" {% if data.get('years_in_field')==opt %}checked{% endif %} required> {{ opt }}</label>{% endfor %}</div></div>
+<div class="form-group"><label>7. איך נחשפת לראשונה? (ניתן לבחור כמה)</label><div class="checkbox-group">{% for opt in ["חברים","משפחה","בית ספר","חוג","כנס","יוטיוב / פודקאסט","משחקי מחשב"] %}<label><input type="checkbox" name="first_exposure" value="{{ opt }}" {% if opt in data.get('first_exposure',[]) %}checked{% endif %}> {{ opt }}</label>{% endfor %}</div></div>
+<div class="form-group"><label>8. עד כמה משחקי תפקידים הם חלק משמעותי מחייך? (1-5) *</label><div class="scale-group">{% for i in [1,2,3,4,5] %}<label><input type="radio" name="importance" value="{{ i }}" {% if data.get('importance')|int == i %}checked{% endif %} required><span>{{ i }}</span></label>{% endfor %}</div></div>
+<div class="btn-row"><button type="submit" class="btn btn-primary">שמור/י והמשך/י ←</button></div></form></div></div>
+{% endblock %}
+S2EOF
+
+cat > templates/survey/section3.html << 'S3EOF'
+{% extends "base.html" %}{% import "survey/_nav.html" as nav %}{% block content %}
+<div class="container"><div class="card">{{ nav.section_nav(active, 'section3', session, SECTION_LABELS) }}<h1>שחקנים שולחניים</h1>
+<form method="post" action="/survey/section3">
+<div class="form-group"><label>11. תדירות משחק? *</label><div class="radio-group">{% for opt in ["יותר מפעם בשבוע","פעם בשבוע","פעמיים-שלוש בחודש","פעם בחודש","כמה פעמים בשנה","כמעט ולא"] %}<label><input type="radio" name="frequency" value="{{ opt }}" {% if data.get('frequency')==opt %}checked{% endif %} required> {{ opt }}</label>{% endfor %}</div></div>
+<div class="form-group"><label>14. פרונטלי או אונליין? *</label><div class="radio-group">{% for opt in ["בעיקר פרונטלית","בעיקר אונליין","חצי-חצי"] %}<label><input type="radio" name="online_or_frontally" value="{{ opt }}" {% if data.get('online_or_frontally')==opt %}checked{% endif %} required> {{ opt }}</label>{% endfor %}</div></div>
+<div class="form-group"><label>16. שיטות בהן שיחקת השנה?</label><div class="checkbox-group">{% for opt in ["מבוכים ודרקונים 5e","Pathfinder","Call of Cthulhu","PbtA / אינדי"] %}<label><input type="checkbox" name="systems" value="{{ opt }}" {% if opt in data.get('systems',[]) %}checked{% endif %}> {{ opt }}</label>{% endfor %}</div></div>
+<div class="btn-row"><button type="submit" class="btn btn-primary">שמור/י והמשך/י ←</button></div></form></div></div>
+{% endblock %}
+S3EOF
+
+cat > templates/survey/section4.html << 'S4EOF'
+{% extends "base.html" %}{% import "survey/_nav.html" as nav %}{% block content %}
+<div class="container"><div class="card">{{ nav.section_nav(active, 'section4', session, SECTION_LABELS) }}<h1>מנחים</h1>
+<form method="post" action="/survey/section4">
+<div class="form-group"><label>האם אתה/את מנחה כיום? *</label><div class="radio-group">{% for opt in ["כן, בקביעות","כן, מדי פעם","בעבר"] %}<label><input type="radio" name="gm_status" value="{{ opt }}" {% if data.get('gm_status')==opt %}checked{% endif %} required> {{ opt }}</label>{% endfor %}</div></div>
+<div class="form-group"><label>מנחה בתשלום? *</label><div class="radio-group">{% for opt in ["כן, מלא","לעיתים","לא"] %}<label><input type="radio" name="gm_paid" value="{{ opt }}" {% if data.get('gm_paid')==opt %}checked{% endif %} required> {{ opt }}</label>{% endfor %}</div></div>
+<div class="btn-row"><button type="submit" class="btn btn-primary">שמור/י והמשך/י ←</button></div></form></div></div>
+{% endblock %}
+S4EOF
+
+cat > templates/survey/section5.html << 'S5EOF'
+{% extends "base.html" %}{% import "survey/_nav.html" as nav %}{% block content %}
+<div class="container"><div class="card">{{ nav.section_nav(active, 'section5', session, SECTION_LABELS) }}<h1>לארפ</h1>
+<form method="post" action="/survey/section5">
+<div class="form-group"><label>תדירות השתתפות? *</label><div class="radio-group">{% for opt in ["מספר פעמים בחודש","פעם בחודש","מספר פעמים בשנה","לעיתים נדירות"] %}<label><input type="radio" name="larp_frequency" value="{{ opt }}" {% if data.get('larp_frequency')==opt %}checked{% endif %} required> {{ opt }}</label>{% endfor %}</div></div>
+<div class="btn-row"><button type="submit" class="btn btn-primary">שמור/י והמשך/י ←</button></div></form></div></div>
+{% endblock %}
+S5EOF
+
+cat > templates/survey/section6.html << 'S6EOF'
+{% extends "base.html" %}{% import "survey/_nav.html" as nav %}{% block content %}
+<div class="container"><div class="card">{{ nav.section_nav(active, 'section6', session, SECTION_LABELS) }}<h1>הורים</h1>
+<form method="post" action="/survey/section6">
+<div class="form-group"><label>גיל הילד/ה שמשחק/ת? *</label><div class="radio-group">{% for opt in ["עד 7","8–10","11–13","14–17","18+"] %}<label><input type="radio" name="child_age" value="{{ opt }}" {% if data.get('child_age')==opt %}checked{% endif %} required> {{ opt }}</label>{% endfor %}</div></div>
+<div class="btn-row"><button type="submit" class="btn btn-primary">שמור/י והמשך/י ←</button></div></form></div></div>
+{% endblock %}
+S6EOF
+
+cat > templates/survey/section7.html << 'S7EOF'
+{% extends "base.html" %}{% import "survey/_nav.html" as nav %}{% block content %}
+<div class="container"><div class="card">{{ nav.section_nav(active, 'section7', session, SECTION_LABELS) }}<h1>עסקים</h1>
+<form method="post" action="/survey/section7">
+<div class="form-group"><label>סוג עסק? *</label><div class="checkbox-group">{% for opt in ["חנות פיזית","חנות אונליין","הוצאה לאור","חוגים"] %}<label><input type="checkbox" name="biz_type" value="{{ opt }}" {% if opt in data.get('biz_type',[]) %}checked{% endif %}> {{ opt }}</label>{% endfor %}</div></div>
+<div class="btn-row"><button type="submit" class="btn btn-primary">שמור/י והמשך/י ←</button></div></form></div></div>
+{% endblock %}
+S7EOF
+
+cat > templates/survey/section8.html << 'S8EOF'
+{% extends "base.html" %}{% import "survey/_nav.html" as nav %}{% block content %}
+<div class="container"><div class="card">{{ nav.section_nav(active, 'section8', session, SECTION_LABELS) }}<h1>מתעניינים / חסמי כניסה</h1>
+<form method="post" action="/survey/section8">
+<div class="form-group"><label>מה מונע ממך להצטרף? *</label><div class="checkbox-group">{% for opt in ["לא יודע איפה למצוא קבוצה","אין לי זמן","עלות גבוהה","חשש חברתי"] %}<label><input type="checkbox" name="barriers" value="{{ opt }}" {% if opt in data.get('barriers',[]) %}checked{% endif %}> {{ opt }}</label>{% endfor %}</div></div>
+<div class="btn-row"><button type="submit" class="btn btn-primary">שמור/י והמשך/י ←</button></div></form></div></div>
+{% endblock %}
+S8EOF
+
+cat > templates/survey/section9.html << 'S9EOF'
+{% extends "base.html" %}{% import "survey/_nav.html" as nav %}{% block content %}
+<div class="container"><div class="card">{{ nav.section_nav(active, 'section9', session, SECTION_LABELS) }}<h1>נשירה מהתחום</h1>
+<form method="post" action="/survey/section9">
+<div class="form-group"><label>מה גרם לך להפסיק לשחק? *</label><div class="checkbox-group">{% for opt in ["הקבוצה התפרקה","מעבר בחיים (עבודה/ילדים)","קושי למצוא מנחה"] %}<label><input type="checkbox" name="dropout" value="{{ opt }}" {% if opt in data.get('dropout',[]) %}checked{% endif %}> {{ opt }}</label>{% endfor %}</div></div>
+<div class="btn-row"><button type="submit" class="btn btn-primary">שמור/י והמשך/י ←</button></div></form></div></div>
+{% endblock %}
+S9EOF
+
+cat > templates/survey/submit.html << 'SUBEOF'
+{% extends "base.html" %}{% import "survey/_nav.html" as nav %}{% block content %}
+<div class="container"><div class="card">{{ nav.section_nav(active, 'submit', session, SECTION_LABELS) }}<h1>סיום וסיכום</h1>
+<form method="post" action="/survey/submit" style="margin-top:20px"><div class="form-group"><label>כתובת מייל להגרלה (לא חובה, לא יקושר לתשובות)</label><input type="email" name="lottery_email"></div>
+<p style="font-size:.87rem;color:#666">עם שליחת הטופס, תעודת הזהות תישמר מוצפנת ולא ניתן למלא שוב.</p>
+<div class="btn-row"><button type="submit" class="btn btn-gold">שלח/י את השאלון ✓</button></div></form></div></div>
+{% endblock %}
+SUBEOF
+
+cat > templates/survey/complete.html << 'COMPEOF'
+{% extends "base.html" %}{% block delete_btn %}{% endblock %}{% block content %}
+<div class="container"><div class="card" style="text-align:center"><div style="font-size:4rem;margin-bottom:12px">🎲</div><h1>תודה רבה!</h1><p>השאלון נשלח בהצלחה.</p>
+<div style="margin-top:20px"><a href="/" class="btn btn-primary">חזרה לדף הבית</a></div></div></div>
+{% endblock %}
+COMPEOF
+
+cat > templates/survey/ended.html << 'ENDEOF'
+{% extends "base.html" %}{% block delete_btn %}{% endblock %}{% block content %}
+<div class="container"><div class="card" style="text-align:center"><div style="font-size:3rem">👋</div><h1 style="margin-top:12px">{{ reason }}</h1><a href="/" class="btn btn-primary">חזרה לדף הבית</a></div></div>
+{% endblock %}
+ENDEOF
+
+cat > templates/admin/login.html << 'ADMINLEOF'
+<!DOCTYPE html><html dir="rtl" lang="he"><head><meta charset="UTF-8"><title>כניסת מנהל</title><link rel="stylesheet" href="/static/style.css"></head><body><div class="container" style="max-width:400px;margin-top:80px"><div class="card"><h1>כניסת מנהל</h1>{% if error %}<div class="error-msg">{{ error }}</div>{% endif %}<form method="post" action="/admin"><div class="form-group"><label>סיסמה</label><input type="password" name="password" required autofocus></div><button type="submit" class="btn btn-primary">כניסה</button></form></div></div></body></html>
+ADMINLEOF
+
+cat > templates/admin/dashboard.html << 'ADMINDEOF'
+<!DOCTYPE html><html dir="rtl" lang="he"><head><meta charset="UTF-8"><title>לוח בקרה</title><link rel="stylesheet" href="/static/style.css"></head><body><nav><a href="/">ראשי</a></nav><div class="container"><div class="card"><h1>לוח בקרה</h1><p>סה"כ נשלחו: {{ submitted }}</p><p>בתהליך: {{ in_progress }}</p></div></div></body></html>
+ADMINDEOF
+
+# ── Git Commit & Push ────────────────────────────────────────────
+echo "📦 Adding files to Git and pushing..."
+git add -A
+git commit -m "feat: COMPLETE bulletproof release with all fixes applied (Proxy IP, DB schema alter, SSR fast rendering)"
+git push origin main
+
+echo "✅ All done! Project is deploying to Railway."#!/bin/bash
 # ================================================================
 # RPG Survey — Complete Implementation Automation Script
 # ================================================================

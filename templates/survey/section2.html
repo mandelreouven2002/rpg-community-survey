@@ -1,48 +1,8 @@
-{% extends "base.html" %}
-{% block content %}
-<div class="container">
-  <div class="card">
-    <h1>חלק 2 — היכרות כללית עם התחום</h1>
-    <form method="post" action="/survey/section2">
-      <div class="form-group">
-        <label>6. כמה שנים את/ה מכיר/ה את תחום משחקי התפקידים? *</label>
-        <div class="radio-group">
-          {% for opt in ["פחות משנה","1–2 שנים","3–5 שנים","6–10 שנים","11–20 שנים","מעל 20 שנים","לא בטוח/ה"] %}
-          <label><input type="radio" name="years_in_field" value="{{ opt }}" {% if data.get('years_in_field')==opt %}checked{% endif %} required> {{ opt }}</label>
-          {% endfor %}
-        </div>
-      </div>
-      <div class="form-group">
-        <label>7. איך נחשפת לראשונה למשחקי תפקידים? (ניתן לבחור כמה)</label>
-        <div class="checkbox-group">
-          {% for opt in ["חברים","משפחה","בית ספר","חוג","כנס","חנות משחקים","יוטיוב / פודקאסט / תוכן אונליין","משחקי מחשב","סדרות / סרטים / תרבות פופולרית","צבא / שירות לאומי / לימודים","רשתות חברתיות","דיסקורד / קהילת אונליין"] %}
-          <label><input type="checkbox" name="first_exposure" value="{{ opt }}" {% if opt in data.get('first_exposure',[]) %}checked{% endif %}> {{ opt }}</label>
-          {% endfor %}
-          <label><input type="checkbox" id="fe_other_cb" name="first_exposure" value="other" onchange="document.getElementById('fe_other').classList.toggle('visible',this.checked)"> אחר:</label>
-          <input type="text" name="first_exposure_other" id="fe_other" class="other-input {% if data.get('first_exposure_other') %}visible{% endif %}" value="{{ data.get('first_exposure_other','') }}" placeholder="פרט/י...">
-        </div>
-      </div>
-      <div class="form-group">
-        <label>8. עד כמה משחקי תפקידים הם חלק משמעותי מהחיים שלך? *</label>
-        <div class="scale-group">
-          {% for i in [1,2,3,4,5] %}
-          {% set labels = {1:"תחביב שולי מאוד",2:"תחביב קטן",3:"תחביב משמעותי",4:"חלק מרכזי מהפנאי",5:"חלק מרכזי מהזהות"} %}
-          <label><input type="radio" name="importance" value="{{ i }}" {% if data.get('importance')==i %}checked{% endif %} required><span>{{ i }}</span><span style="font-size:.75rem">{{ labels[i] }}</span></label>
-          {% endfor %}
-        </div>
-      </div>
-      <div class="form-group">
-        <label>9. אילו סוגי משחקי תפקידים מעניינים אותך? (ניתן לבחור כמה)</label>
-        <div class="checkbox-group">
-          {% for opt in ["משחקי תפקידים שולחניים","משחקי תפקידים חיים / לארפים","משחקי תפקידים לילדים ונוער","משחקי תפקידים טיפוליים / חינוכיים","משחקי תפקידים אונליין","משחקים חד-פעמיים / וואנשוטים","קמפיינים ארוכים","משחקים סיפוריים / נרטיביים","משחקים טקטיים / קרביים","משחקי תפקידים עצמאיים / אינדי","מבוכים ודרקונים בעיקר","יצירת שיטות ומשחקים","תרגום והוצאה לאור"] %}
-          <label><input type="checkbox" name="interest_types" value="{{ opt }}" {% if opt in data.get('interest_types',[]) %}checked{% endif %}> {{ opt }}</label>
-          {% endfor %}
-          <label><input type="checkbox" id="it_other_cb" name="interest_types" value="other" onchange="document.getElementById('it_other').classList.toggle('visible',this.checked)"> אחר:</label>
-          <input type="text" name="interest_types_other" id="it_other" class="other-input {% if data.get('interest_types_other') %}visible{% endif %}" value="{{ data.get('interest_types_other','') }}" placeholder="פרט/י...">
-        </div>
-      </div>
-      <div class="btn-row"><button type="submit" class="btn btn-primary">שמור/י והמשך/י ←</button></div>
-    </form>
-  </div>
-</div>
+{% extends "base.html" %}{% import "survey/_nav.html" as nav %}{% block content %}
+<div class="container"><div class="card">{{ nav.section_nav(active, 'section2', session, SECTION_LABELS) }}<h1>היכרות כללית עם התחום</h1>
+<form method="post" action="/survey/section2">
+<div class="form-group"><label>6. כמה שנים את/ה מכיר/ה את תחום משחקי התפקידים? *</label><div class="radio-group">{% for opt in ["פחות משנה","1–2 שנים","3–5 שנים","6–10 שנים","11–20 שנים","מעל 20 שנים","לא בטוח/ה"] %}<label><input type="radio" name="years_in_field" value="{{ opt }}" {% if data.get('years_in_field')==opt %}checked{% endif %} required> {{ opt }}</label>{% endfor %}</div></div>
+<div class="form-group"><label>7. איך נחשפת לראשונה? (ניתן לבחור כמה)</label><div class="checkbox-group">{% for opt in ["חברים","משפחה","בית ספר","חוג","כנס","יוטיוב / פודקאסט","משחקי מחשב"] %}<label><input type="checkbox" name="first_exposure" value="{{ opt }}" {% if opt in data.get('first_exposure',[]) %}checked{% endif %}> {{ opt }}</label>{% endfor %}</div></div>
+<div class="form-group"><label>8. עד כמה משחקי תפקידים הם חלק משמעותי מחייך? (1-5) *</label><div class="scale-group">{% for i in [1,2,3,4,5] %}<label><input type="radio" name="importance" value="{{ i }}" {% if data.get('importance')|int == i %}checked{% endif %} required><span>{{ i }}</span></label>{% endfor %}</div></div>
+<div class="btn-row"><button type="submit" class="btn btn-primary">שמור/י והמשך/י ←</button></div></form></div></div>
 {% endblock %}

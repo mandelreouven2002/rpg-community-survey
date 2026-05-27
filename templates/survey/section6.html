@@ -1,51 +1,6 @@
-{% extends "base.html" %}
-{% block content %}
-<div class="container">
-  <div class="card">
-    <h1>חלק 6 — הורים</h1>
-    <form method="post" action="/survey/section6">
-      <div class="form-group">
-        <label>באיזו גיל קבוצה הילד/ה שלך? *</label>
-        <div class="radio-group">
-          {% for opt in ["עד 7","8–10","11–13","14–17","18+"] %}
-          <label><input type="radio" name="child_age" value="{{ opt }}" required> {{ opt }}</label>
-          {% endfor %}
-        </div>
-      </div>
-      <div class="form-group">
-        <label>במה הילד/ה שלך עוסק/ת? (ניתן לבחור כמה)</label>
-        <div class="checkbox-group">
-          {% for opt in ["שחקן/ית שולחני/ת","מנחה","משתתף/ת בלארפים","משתמש/ת בדיגיטל בלבד","לא משחק/ת עדיין"] %}
-          <label><input type="checkbox" name="child_roles" value="{{ opt }}"> {{ opt }}</label>
-          {% endfor %}
-        </div>
-      </div>
-      <div class="form-group">
-        <label>האם את/ה רואה ערך חינוכי או חברתי בתחום? *</label>
-        <div class="radio-group">
-          {% for opt in ["כן, מאוד","כן, מסוים","לא בטוח/ה","לא ממש","לא"] %}
-          <label><input type="radio" name="edu_value" value="{{ opt }}" required> {{ opt }}</label>
-          {% endfor %}
-        </div>
-      </div>
-      <div class="form-group">
-        <label>האם שילמת על פעילות בתחום לילד/ה? *</label>
-        <div class="radio-group">
-          {% for opt in ["כן, על חוג","כן, על כנס","כן, על מנחה פרטי","כן, על ציוד / ספרים","לא שילמתי עדיין","מוכן/ה לשלם בתנאים מסוימים"] %}
-          <label><input type="radio" name="parent_paid" value="{{ opt }}" required> {{ opt }}</label>
-          {% endfor %}
-        </div>
-      </div>
-      <div class="form-group">
-        <label>מה חסם/חסמה אותך מלהשקיע יותר בתחום לילד/ה?</label>
-        <div class="checkbox-group">
-          {% for opt in ["עלות גבוהה","לא מצאתי חוג/פעילות מתאימה","חוסר מידע","חששות בטיחות","הילד/ה לא עניין/ת","אין חסם"] %}
-          <label><input type="checkbox" name="parent_barriers" value="{{ opt }}"> {{ opt }}</label>
-          {% endfor %}
-        </div>
-      </div>
-      <div class="btn-row"><button type="submit" class="btn btn-primary">שמור/י והמשך/י ←</button></div>
-    </form>
-  </div>
-</div>
+{% extends "base.html" %}{% import "survey/_nav.html" as nav %}{% block content %}
+<div class="container"><div class="card">{{ nav.section_nav(active, 'section6', session, SECTION_LABELS) }}<h1>הורים</h1>
+<form method="post" action="/survey/section6">
+<div class="form-group"><label>גיל הילד/ה שמשחק/ת? *</label><div class="radio-group">{% for opt in ["עד 7","8–10","11–13","14–17","18+"] %}<label><input type="radio" name="child_age" value="{{ opt }}" {% if data.get('child_age')==opt %}checked{% endif %} required> {{ opt }}</label>{% endfor %}</div></div>
+<div class="btn-row"><button type="submit" class="btn btn-primary">שמור/י והמשך/י ←</button></div></form></div></div>
 {% endblock %}
