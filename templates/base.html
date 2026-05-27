@@ -3,40 +3,35 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}סקר קהילת משחקי תפקידים בישראל{% endblock %}</title>
+  <title>{% block title %}סקר קהילת משחקי התפקידים בישראל{% endblock %}</title>
   <link rel="icon" href="https://gate.roleplay.top/rpg-game.png">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+  {% block content %}{% endblock %}
 
-{% block content %}{% endblock %}
+  {% block delete_btn %}
+  <div class="delete-btn-wrapper">
+    <form method="post" action="/survey/delete" onsubmit="return confirm('האם למחוק את כל הנתונים שלך מהמערכת?')">
+      <button type="submit" id="reset-btn">🗑 מחק את כל הנתונים שלי</button>
+    </form>
+  </div>
+  {% endblock %}
 
-{% block delete_btn %}
-<div class="delete-btn-wrapper">
-  <form method="post" action="/survey/delete" onsubmit="return confirm('האם למחוק את כל הנתונים שלך מהמערכת?')">
-    <button type="submit" id="reset-btn">🗑 מחק את כל הנתונים שלי</button>
-  </form>
-</div>
-{% endblock %}
-
-<script>
-// סקריפט חכם שמעדכן את העיצוב של הכרטיסיות (כפתורי רדיו וצ'קבוקסים) ברגע שלוחצים עליהם
-function updateCardStyles() {
+  <script>
+  function updateCardStyles() {
     document.querySelectorAll('.checkbox-group label, .radio-group label, .scale-group label').forEach(lbl => {
-        const input = lbl.querySelector('input');
-        if(input && input.checked) {
-            lbl.classList.add('selected');
-        } else {
-            lbl.classList.remove('selected');
-        }
+      const input = lbl.querySelector('input');
+      if(input && input.checked) lbl.classList.add('selected');
+      else lbl.classList.remove('selected');
     });
-}
-document.addEventListener('change', function(e) {
+  }
+  document.addEventListener('change', function(e) {
     if(e.target.tagName === 'INPUT' && (e.target.type === 'radio' || e.target.type === 'checkbox')) {
-        updateCardStyles();
+      updateCardStyles();
     }
-});
-window.addEventListener('DOMContentLoaded', updateCardStyles);
-</script>
+  });
+  window.addEventListener('DOMContentLoaded', updateCardStyles);
+  </script>
 </body>
 </html>

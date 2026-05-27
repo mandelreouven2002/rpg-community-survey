@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="top-bar">
+  {% if previous %}
+    <a class="back-btn" href="/survey/{{ previous }}">➔ חזור</a>
+  {% else %}
+    <a class="back-btn" href="/">➔ חזור</a>
+  {% endif %}
+  <div class="progress-container"><div class="progress-bar" style="width:{{ progress }}%"></div></div>
+  <div class="step-text">{{ title }}</div>
+</div>
+
+<main class="container">
+  <section class="card">
+    <h1>{{ title }}</h1>
+
+    {% if error %}
+      <div class="error-msg">{{ error }}</div>
+    {% endif %}
+
+    <form method="post" action="/survey/{{ section }}" class="form">
+      {% for q in questions %}
+        <div class="form-group">
+          <label>
+            {{ q.label }}
+            {% if q.required %}<span class="required">*</span>{% endif %}
+          </label>
+
+          {% if q.type == "text" or q.type == "email" %}
+            <input type="{{ q.type }}" name="{{ q.name }}" value="{{ data.get(q.name, '') }}" {% if q.required %}required{% endif %}>
+
+          {% elif q.type == "textarea" %}
+            <textarea name="{{ q.name }}" rows="5" {% if q.required %}required{% endif %}>{{ data.get(q.name, '') }}</textarea>
+
+          {% elif q.type == "select" %}
+            <select name="{{ q.name }}" {% if q.required %}required{% endif %}>
+              <option value="">-- בחר/י --</option>
+              {% for opt in q.options %}
+                <option value="{{ opt }}" {% if data.get(q.name) == opt %}selected{% endif %}>{{ opt }}</option>
+              {% endfor %}
+            </select>
+
+          {% elif q.type == "radio" %}
+            <div class="radio-group">
+              {% for opt in q.options %}
+                <label>
+                  <input type="radio" name="{{ q.name }}" value="{{ opt }}" {% if data.get(q.name) == opt %}checked{% endif %} {% if q.required %}required{% endif %}>
+                  {{ opt }}
+                </label>
+              {% endfor %}
+            </div>
+
+          {% elif q.type == "checkbox" %}
+            <div class="checkbox-group">
+              {% for opt in q.options %}
+                <label>
+                  <input type="checkbox" name="{{ q.name }}" value="{{ opt }}" {% if opt in data.get(q.name, []) %}checked{% endif %}>
+                  {{ opt }}
+                </label>
+              {% endfor %}
+            </div>
+
+          {% elif q.type == "scale" %}
+            <div class="scale-group">
+              {% for i in range(q.min, q.max + 1) %}
+                <label>
+                  <input type="radio" name="{{ q.name }}" value="{{ i }}" {% if data.get(q.name)|string == i|string %}checked{% endif %} {% if q.required %}required{% endif %}>
+                  <span>{{ i }}</span>
+                </label>
+              {% endfor %}
+            </div>
+          {% endif %}
+        </div>
+      {% endfor %}
+
+      <div class="btn-row">
+        <button type="submit" class="btn btn-primary">שמור/י והמשך/י ←</button>
+      </div>
+    </form>
+  </section>
+</main>
+{% endblock %}
