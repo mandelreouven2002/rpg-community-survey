@@ -1,26 +1,17 @@
-{% extends "base.html" %}
-{% block content %}
-<div class="container">
-  <div class="card">
-    <h1>סיום וסיכום</h1>
-    <p>תודה על מילוי השאלון! לפני שנשלח, כמה שאלות אחרונות:</p>
-    <form method="post" action="/survey/submit" style="margin-top:20px">
-      <div class="form-group">
-        <label>כתובת מייל להגרלה (לא חובה)</label>
-        <p style="font-size:.87rem;color:#555;margin-bottom:6px">זה יישמר בנפרד לחלוטין מתשובותיך ויימחק לאחר ההגרלה.</p>
-        <input type="email" name="lottery_email" placeholder="your@email.com" autocomplete="email">
-      </div>
-      <div style="background:#f0f7ff;border-radius:8px;padding:16px;margin-bottom:16px">
-        <strong>החלקים שמילאת:</strong>
-        <ul style="margin-top:8px;padding-right:20px">
-          {% for s in active %}
-          <li>{{ SECTION_LABELS.get(s, s) }}</li>
-          {% endfor %}
-        </ul>
-      </div>
-      <p style="font-size:.87rem;color:#666;margin-bottom:16px">עם שליחת הטופס, תעודת הזהות שלך תישמר מוצפנת ולא ניתן יהיה למלא את השאלון שוב עם אותה תעודת זהות.</p>
-      <div class="btn-row"><button type="submit" class="btn btn-gold">שלח/י את השאלון ✓</button></div>
-    </form>
-  </div>
+{% extends "base.html" %}{% import "survey/_nav.html" as nav %}{% block content %}
+<div class="container"><div class="card">{{ nav.section_nav(active, 'submit', session, SECTION_LABELS) }}<h1>סיום וסיכום</h1>
+{% if error %}<div class="error-msg">{{ error }}</div>{% endif %}
+<form method="post" action="/survey/submit" style="margin-top:20px">
+
+{% if not has_pending_id %}
+<div class="form-group" style="border:2px solid var(--gold); padding:16px; border-radius:8px; background:#fffdf5;">
+    <label style="color:var(--brand); font-weight:bold;">זיהינו שחזרת ממכשיר/דפדפן אחר (או שניקית עוגיות).</label>
+    <p style="font-size:0.9rem; margin-bottom:10px;">למען אמינות הסקר ומניעת כפילויות, אנא הזן/י שוב תעודת זהות. כזכור - היא לא מקושרת לתשובות ותישמר מוצפנת בנפרד לחלוטין.</p>
+    <input type="text" name="re_enter_id" maxlength="9" pattern="\d{5,9}" required autocomplete="off" placeholder="מספר תעודת זהות">
 </div>
+{% endif %}
+
+<div class="form-group"><label>כתובת מייל להגרלה (לא חובה, לא יקושר לתשובות)</label><input type="email" name="lottery_email"></div>
+<p style="font-size:.87rem;color:#666">עם שליחת הטופס, תעודת הזהות תישמר מוצפנת ולא ניתן למלא שוב.</p>
+<div class="btn-row"><button type="submit" class="btn btn-gold">שלח/י את השאלון ✓</button></div></form></div></div>
 {% endblock %}
