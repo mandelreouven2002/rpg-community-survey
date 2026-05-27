@@ -24,18 +24,13 @@ app = FastAPI(title="סקר קהילת משחקי תפקידים בישראל")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-# ==========================================
-# פונקציות עזר - חסינות לתקלות גרסה וזיהוי ענן
-# ==========================================
+# פונקציית עזר לרינדור HTML שמונעת קריסות (500 Internal Server Error)
 def render(request: Request, name: str, **kwargs):
-    """
-    פונקציית עזר שפותרת את שגיאת ה-500 בגרסאות החדשות של FastAPI
-    """
     kwargs["request"] = request
     return templates.TemplateResponse(request=request, name=name, context=kwargs)
 
+# זיהוי IP חכם גם כשהשרת יושב מאחורי Railway
 def get_client_ip(request: Request) -> str:
-    """זיהוי IP אמיתי גם מאחורי ה-Load Balancer של Railway"""
     forwarded = request.headers.get("x-forwarded-for")
     if forwarded:
         return forwarded.split(",")[0].strip()
@@ -52,6 +47,8 @@ def startup():
             SurveySession.created_at < cutoff
         ).delete()
         db.commit()
+    except Exception as e:
+        print(f"Startup clean error: {e}")
     finally:
         db.close()
 
@@ -59,8 +56,7 @@ def _get_session(request: Request, db: Session, session_id: Optional[str]) -> Op
     ip_hash = hash_ip(get_client_ip(request))
     if session_id:
         s = db.query(SurveySession).filter_by(id=session_id, is_submitted=False).first()
-        if s:
-            return s
+        if s: return s
     return db.query(SurveySession).filter_by(ip_hash=ip_hash, is_submitted=False)\
              .order_by(SurveySession.created_at.desc()).first()
 
@@ -79,9 +75,7 @@ def home(request: Request):
     return render(request, "home.html")
 
 @app.get("/survey", response_class=HTMLResponse)
-def survey_start(request: Request,
-                 session_id: Optional[str] = Cookie(default=None),
-                 db: Session = Depends(get_db)):
+def survey_start(request: Request, session_id: Optional[str] = Cookie(default=None), db: Session = Depends(get_db)):
     existing = _get_session(request, db, session_id)
     if existing and existing.section1:
         return render(request, "survey/resume.html", session=existing, SECTION_LABELS=SECTION_LABELS)
@@ -98,8 +92,7 @@ def identity_form(request: Request):
     return render(request, "survey/identity.html", error=None)
 
 @app.post("/survey/identity")
-async def identity_submit(request: Request, id_number: str = Form(...),
-                          db: Session = Depends(get_db)):
+async def identity_submit(request: Request, id_number: str = Form(...), db: Session = Depends(get_db)):
     id_number = id_number.strip()
     if not validate_israeli_id(id_number):
         return render(request, "survey/identity.html", error="מספר תעודת הזהות אינו תקין. אנא בדוק/י ונסה/י שוב.")
@@ -116,14 +109,9 @@ def demographics_form(request: Request):
 
 @app.post("/survey/demographics")
 async def demographics_submit(
-    request: Request,
-    dob: Optional[str] = Form(default=None),
-    dob_prefer_not: Optional[str] = Form(default=None),
-    region: str = Form(...),
-    city: Optional[str] = Form(default=None),
-    roles: list = Form(default=[]),
-    session_id: Optional[str] = Cookie(default=None),
-    db: Session = Depends(get_db)
+    request: Request, dob: Optional[str] = Form(default=None), dob_prefer_not: Optional[str] = Form(default=None),
+    region: str = Form(...), city: Optional[str] = Form(default=None), roles: list = Form(default=[]),
+    session_id: Optional[str] = Cookie(default=None), db: Session = Depends(get_db)
 ):
     if not dob_prefer_not and dob:
         age = calculate_age(dob)
@@ -133,8 +121,7 @@ async def demographics_submit(
         return render(request, "survey/demographics.html", error="אנא בחר/י לפחות תפקיד אחד.")
 
     active = determine_active_sections(roles)
-    s1 = json.dumps({"dob": dob, "dob_prefer_not": bool(dob_prefer_not),
-                     "region": region, "city": city, "roles": roles}, ensure_ascii=False)
+    s1 = json.dumps({"dob": dob, "dob_prefer_not": bool(dob_prefer_not), "region": region, "city": city, "roles": roles}, ensure_ascii=False)
     ip_hash = hash_ip(get_client_ip(request))
 
     sess = _get_session(request, db, session_id)
@@ -154,22 +141,16 @@ async def demographics_submit(
     return resp
 
 @app.get("/survey/choose-version", response_class=HTMLResponse)
-def choose_version(request: Request,
-                   session_id: Optional[str] = Cookie(default=None),
-                   db: Session = Depends(get_db)):
+def choose_version(request: Request, session_id: Optional[str] = Cookie(default=None), db: Session = Depends(get_db)):
     sess = _get_session(request, db, session_id)
-    if not sess:
-        return RedirectResponse("/survey")
+    if not sess: return RedirectResponse("/survey")
     active = json.loads(sess.active_sections or "[]")
     return render(request, "survey/choose_version.html", num_sections=len(active))
 
 @app.post("/survey/choose-version")
-async def choose_version_submit(request: Request, version: str = Form(...),
-                                 session_id: Optional[str] = Cookie(default=None),
-                                 db: Session = Depends(get_db)):
+async def choose_version_submit(request: Request, version: str = Form(...), session_id: Optional[str] = Cookie(default=None), db: Session = Depends(get_db)):
     sess = _get_session(request, db, session_id)
-    if not sess:
-        return RedirectResponse("/survey")
+    if not sess: return RedirectResponse("/survey")
     
     sess.survey_type = version
     active = json.loads(sess.active_sections or "[]")
@@ -181,7 +162,6 @@ async def choose_version_submit(request: Request, version: str = Form(...),
 
     sess.updated_at = datetime.utcnow()
     db.commit()
-    
     first_section = active[0] if active else "submit"
     return RedirectResponse(f"/survey/{first_section}", status_code=303)
 
@@ -204,7 +184,6 @@ def _make_section(num: str):
                 if isinstance(data[k], list): data[k].append(v)
                 else: data[k] = [data[k], v]
             else: data[k] = v
-        
         setattr(sess, f"section{num}", json.dumps(data, ensure_ascii=False))
         active = json.loads(sess.active_sections or "[]")
         nxt = next_section(active, f"section{num}")
@@ -212,7 +191,6 @@ def _make_section(num: str):
         sess.updated_at = datetime.utcnow()
         db.commit()
         return RedirectResponse(f"/survey/{nxt}" if nxt else "/survey/submit", status_code=303)
-
     return get_handler, post_handler
 
 for _n in ["2", "3", "4", "5", "6", "7", "8", "9"]:
@@ -228,8 +206,7 @@ def submit_get(request: Request, session_id: Optional[str] = Cookie(default=None
 
 @app.post("/survey/submit")
 async def submit_post(request: Request, lottery_email: Optional[str] = Form(default=None),
-                      session_id: Optional[str] = Cookie(default=None),
-                      pending_id_hash: Optional[str] = Cookie(default=None), db: Session = Depends(get_db)):
+                      session_id: Optional[str] = Cookie(default=None), pending_id_hash: Optional[str] = Cookie(default=None), db: Session = Depends(get_db)):
     sess, r = _require(request, db, session_id)
     if r: return r
     if pending_id_hash and not db.query(IdHash).filter_by(id_hash=pending_id_hash).first():
@@ -264,8 +241,7 @@ async def resume(request: Request, action: str = Form(...), session_id: Optional
         resp.delete_cookie("session_id")
         return resp
     sess = db.query(SurveySession).filter_by(ip_hash=ip_hash, is_submitted=False).order_by(SurveySession.created_at.desc()).first()
-    if sess:
-        return RedirectResponse(f"/survey/{sess.current_section or 'section2'}", status_code=303)
+    if sess: return RedirectResponse(f"/survey/{sess.current_section or 'section2'}", status_code=303)
     return RedirectResponse("/survey", status_code=303)
 
 @app.get("/admin", response_class=HTMLResponse)

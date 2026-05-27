@@ -16,7 +16,7 @@ class SurveySession(Base):
     id              = Column(String(36), primary_key=True, default=new_uuid)
     ip_hash         = Column(String(64), nullable=False, index=True)
     survey_type     = Column(String(10), nullable=True)   # 'short' | 'long'
-    is_submitted    = Column(Boolean, default=False)      # הוחזר לשם המקורי שבמסד הנתונים
+    is_submitted    = Column(Boolean, default=False)
     current_section = Column(String(20), default="section1")
     created_at      = Column(DateTime, default=datetime.utcnow)
     updated_at      = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
