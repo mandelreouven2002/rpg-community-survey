@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block delete_btn %}{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="card">
+    <h1>פרטים בסיסיים</h1>
+    {% if error %}<div class="error-msg">{{ error }}</div>{% endif %}
+    <form method="post" action="/survey/demographics">
+      <div class="form-group">
+        <label>תאריך לידה</label>
+        <input type="date" name="dob" id="dob_field">
+        <label style="margin-top:8px;font-weight:normal"><input type="checkbox" name="dob_prefer_not" id="dob_pref" onchange="document.getElementById('dob_field').disabled=this.checked"> מעדיף/ה לא לענות</label>
+      </div>
+      <div class="form-group">
+        <label>אזור מגורים *</label>
+        <select name="region" required>
+          <option value="">-- בחר/י --</option><option>צפון</option><option>חיפה והקריות</option><option>השרון</option><option>גוש דן</option><option>תל אביב-יפו</option><option>ירושלים והסביבה</option><option>השפלה</option><option>דרום</option><option>יהודה ושומרון</option><option>אילת והערבה</option><option>גר/ה בחו״ל</option><option>מעדיף/ה לא לענות</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>עיר / יישוב (לא חובה)</label>
+        <input type="text" name="city" placeholder="לדוגמה: תל אביב">
+      </div>
+      <div class="form-group">
+        <label>מה הקשר שלך לעולם משחקי התפקידים? (ניתן לבחור כמה) *</label>
+        <div class="checkbox-group">
+          <label><input type="checkbox" name="roles" value="tabletop_player"> אני משחק/ת במשחקי תפקידים שולחניים</label>
+          <label><input type="checkbox" name="roles" value="gm"> אני מנחה משחקי תפקידים שולחניים</label>
+          <label><input type="checkbox" name="roles" value="larp_participant"> אני משתתף/ת במשחקי תפקידים חיים / לארפים</label>
+          <label><input type="checkbox" name="roles" value="larp_organizer"> אני מארגן/ת משחקי תפקידים חיים / לארפים</label>
+          <label><input type="checkbox" name="roles" value="digital_only"> אני משחק/ת במשחקי תפקידים דיגיטליים בלבד</label>
+          <label><input type="checkbox" name="roles" value="parent"> אני הורה לילד/ה שמשחק/ת</label>
+          <label><input type="checkbox" name="roles" value="facilitator"> אני מפעיל/ה חוגים או סדנאות</label>
+          <label><input type="checkbox" name="roles" value="business"> אני בעל/ת עסק, חנות או הוצאה בתחום</label>
+          <label><input type="checkbox" name="roles" value="creator"> אני יוצר/ת תוכן, כותב/ת, מתרגם/ת</label>
+          <label><input type="checkbox" name="roles" value="interested"> אני מתעניין/ת אבל עדיין לא משחק/ת</label>
+          <label><input type="checkbox" name="roles" value="former_player"> שיחקתי בעבר, אבל כיום לא</label>
+          <label><input type="checkbox" name="roles" value="curious"> אין לי קשר ישיר, אבל התחום מעניין אותי</label>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary">המשך/י</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

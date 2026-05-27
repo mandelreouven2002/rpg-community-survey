@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+  <div class="card">
+    <h1>חלק 8 — חסמי כניסה לתחום</h1>
+    <p style="margin-bottom:20px">חלק זה מיועד למי שמתעניין/ת אבל עדיין לא הצטרף/ה לעולם משחקי התפקידים.</p>
+    <form method="post" action="/survey/section8">
+      <div class="form-group">
+        <label>מה מעניין אותך בעולם משחקי התפקידים? (ניתן לבחור כמה)</label>
+        <div class="checkbox-group">
+          {% for opt in ["הסיפורים וההרפתקאות","יצירת דמויות","הפן החברתי","יצירתיות ואלתור","הז'אנרים (פנטזיה, מד\"ב וכו')","האסתטיקה / ציוד","מה שראיתי בתרבות הפופולרית","אחר"] %}
+          <label><input type="checkbox" name="interest_in" value="{{ opt }}"> {{ opt }}</label>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="form-group">
+        <label>מה מונע ממך להצטרף? (ניתן לבחור כמה) *</label>
+        <div class="checkbox-group">
+          {% for opt in ["לא יודע/ת איפה למצוא קבוצה","לא יודע/ת איך מתחילים","חשש חברתי","אין לי זמן","העלות גבוהה","אין פעילות באזורי","חשש שזה 'לא בשבילי'","אין מישהו שיכניס אותי","לא מצאתי מנחה מתחילים","אחר"] %}
+          <label><input type="checkbox" name="barriers" value="{{ opt }}"> {{ opt }}</label>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="form-group">
+        <label>מה היה עוזר לך להצטרף? (ניתן לבחור כמה)</label>
+        <div class="checkbox-group">
+          {% for opt in ["חבר/ה שיכניס/תכניס אותי","משחק מבוא / הכרות","חוג מתחילים","מנחה מנוסה שמלווה","תוכן הסברתי (יוטיוב, אינסטגרם)","אירוע פתוח לציבור","אחר"] %}
+          <label><input type="checkbox" name="would_help" value="{{ opt }}"> {{ opt }}</label>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="btn-row"><button type="submit" class="btn btn-primary">שמור/י והמשך/י ←</button></div>
+    </form>
+  </div>
+</div>
+{% endblock %}

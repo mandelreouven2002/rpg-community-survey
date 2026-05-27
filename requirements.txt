@@ -1,7 +1,7 @@
 fastapi
-uvicorn
+uvicorn[standard]
 sqlalchemy
+python-dotenv
 psycopg2-binary
 jinja2
 python-multipart
-passlib

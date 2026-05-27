@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+  <meta charset="UTF-8">
+  <title>כניסת מנהל</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="container" style="max-width:400px;margin-top:80px">
+  <div class="card">
+    <h1>כניסת מנהל</h1>
+    {% if error %}<div class="error-msg">{{ error }}</div>{% endif %}
+    <form method="post" action="/admin" style="margin-top:16px">
+      <div class="form-group">
+        <label>סיסמה</label>
+        <input type="password" name="password" required autofocus>
+      </div>
+      <button type="submit" class="btn btn-primary">כניסה</button>
+    </form>
+  </div>
+</div>
+</body>
+</html>

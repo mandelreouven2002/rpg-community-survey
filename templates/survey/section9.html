@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+  <div class="card">
+    <h1>חלק 9 — נשירה מהתחום</h1>
+    <p style="margin-bottom:20px">חלק זה מיועד למי ששיחק/ה בעבר אך כיום אינו/ה פעיל/ה.</p>
+    <form method="post" action="/survey/section9">
+      <div class="form-group">
+        <label>כמה זמן שיחקת לפני שהפסקת? *</label>
+        <div class="radio-group">
+          {% for opt in ["פחות משנה","1–2 שנים","3–5 שנים","6–10 שנים","מעל 10 שנים"] %}
+          <label><input type="radio" name="years_active" value="{{ opt }}" required> {{ opt }}</label>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="form-group">
+        <label>מה גרם לך להפסיק? (ניתן לבחור כמה) *</label>
+        <div class="checkbox-group">
+          {% for opt in ["קושי בתיאום זמנים","הקבוצה התפרקה","לא מצאתי קבוצה חדשה","מעבר חיים (עבודה, ילדים, לימודים)","חוסר עניין הדרגתי","חוויה לא נעימה בקבוצה","חוסר מנחה","מגורים באזור ללא פעילות","עלות גבוהה","אחר"] %}
+          <label><input type="checkbox" name="dropout_reasons" value="{{ opt }}"> {{ opt }}</label>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="form-group">
+        <label>האם אתה/את שוקל/ת לחזור? *</label>
+        <div class="radio-group">
+          {% for opt in ["כן, בהחלט","אולי, בתנאים מסוימים","לא יודע/ת","לא, לא מתכנן/ת"] %}
+          <label><input type="radio" name="return_intent" value="{{ opt }}" required> {{ opt }}</label>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="form-group">
+        <label>מה היה מחזיר אותך לתחום?</label>
+        <div class="checkbox-group">
+          {% for opt in ["קבוצה קבועה","מנחה מנוסה שמנהל/ת הכל","משחקים קצרים (וואנשוטים)","פעילות באזורי","מחיר נגיש","חברים שחוזרים","אחר"] %}
+          <label><input type="checkbox" name="return_factors" value="{{ opt }}"> {{ opt }}</label>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="btn-row"><button type="submit" class="btn btn-primary">שמור/י והמשך/י ←</button></div>
+    </form>
+  </div>
+</div>
+{% endblock %}
