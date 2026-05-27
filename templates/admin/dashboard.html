@@ -1,1 +1,43 @@
-<!DOCTYPE html><html dir="rtl" lang="he"><head><meta charset="UTF-8"><title>לוח בקרה</title><link rel="stylesheet" href="/static/style.css"></head><body><nav><a href="/">ראשי</a></nav><div class="container"><div class="card"><h1>לוח בקרה</h1><p>סה"כ נשלחו: {{ submitted }}</p><p>בתהליך: {{ in_progress }}</p></div></div></body></html>
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+  <meta charset="UTF-8">
+  <title>לוח בקרה</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<nav><a href="/">ראשי</a></nav>
+<div class="container">
+  <div class="card">
+    <h1>לוח בקרה — סקר קהילת משחקי תפקידים</h1>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:20px 0">
+      <div style="background:#e8f4f8;padding:20px;border-radius:8px;text-align:center">
+        <div style="font-size:2.5rem;font-weight:bold;color:var(--brand)">{{ total }}</div>
+        <div>סה"כ מילויים</div>
+      </div>
+      <div style="background:#d4edda;padding:20px;border-radius:8px;text-align:center">
+        <div style="font-size:2.5rem;font-weight:bold;color:#155724">{{ submitted }}</div>
+        <div>נשלחו</div>
+      </div>
+      <div style="background:#fff3cd;padding:20px;border-radius:8px;text-align:center">
+        <div style="font-size:2.5rem;font-weight:bold;color:#856404">{{ in_progress }}</div>
+        <div>בתהליך</div>
+      </div>
+    </div>
+    <h2 style="margin-top:20px">פילוח לפי אזור</h2>
+    <table style="width:100%;border-collapse:collapse;margin-top:10px">
+      <tr style="background:var(--brand);color:white">
+        <th style="padding:8px 12px;text-align:right">אזור</th>
+        <th style="padding:8px 12px;text-align:center">מספר משיבים</th>
+      </tr>
+      {% for region, count in region_counts.items() %}
+      <tr style="border-bottom:1px solid #eee">
+        <td style="padding:8px 12px">{{ region }}</td>
+        <td style="padding:8px 12px;text-align:center">{{ count }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+</body>
+</html>

@@ -1,6 +1,43 @@
-{% extends "base.html" %}{% import "survey/_nav.html" as nav %}{% block content %}
-<div class="container"><div class="card">{{ nav.section_nav(active, 'section7', session, SECTION_LABELS) }}<h1>עסקים</h1>
-<form method="post" action="/survey/section7">
-<div class="form-group"><label>סוג עסק? *</label><div class="checkbox-group">{% for opt in ["חנות פיזית","חנות אונליין","הוצאה לאור","חוגים"] %}<label><input type="checkbox" name="biz_type" value="{{ opt }}" {% if opt in data.get('biz_type',[]) %}checked{% endif %}> {{ opt }}</label>{% endfor %}</div></div>
-<div class="btn-row"><button type="submit" class="btn btn-primary">שמור/י והמשך/י ←</button></div></form></div></div>
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+  <div class="card">
+    <h1>חלק 7 — עסקים, חנויות והוצאות</h1>
+    <form method="post" action="/survey/section7">
+      <div class="form-group">
+        <label>מה סוג העסק / הפעילות שלך? (ניתן לבחור כמה) *</label>
+        <div class="checkbox-group">
+          {% for opt in ["חנות פיזית","חנות אונליין","הוצאה לאור","ייצור / יצירה","סדנאות / חוגים","מנחה מקצועי בתשלום","מתחם משחק","תרגום","אחר"] %}
+          <label><input type="checkbox" name="biz_type" value="{{ opt }}"> {{ opt }}</label>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="form-group">
+        <label>כמה שנים הפעילות קיימת? *</label>
+        <div class="radio-group">
+          {% for opt in ["פחות משנה","1–3 שנים","4–7 שנים","8–15 שנים","מעל 15 שנים"] %}
+          <label><input type="radio" name="biz_years" value="{{ opt }}" required> {{ opt }}</label>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="form-group">
+        <label>מה האתגרים המרכזיים שלך כעסק בתחום?</label>
+        <div class="checkbox-group">
+          {% for opt in ["שוק קטן","תחרות ממשחקים דיגיטליים","חוסר ביקוש","מחסור בחומרים בעברית","הפצה ולוגיסטיקה","מימון ראשוני","מיתוג ושיווק","חוסר תמיכה ממוסדות","אחר"] %}
+          <label><input type="checkbox" name="biz_challenges" value="{{ opt }}"> {{ opt }}</label>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="form-group">
+        <label>האם יש עסקים נוספים בתחום שאתה/את משתף/ת פעולה איתם? *</label>
+        <div class="radio-group">
+          {% for opt in ["כן, שיתוף פעולה פעיל","כן, לפעמים","לא, פועל/ת בנפרד","מעוניין/ת אך לא מצאתי שותפים"] %}
+          <label><input type="radio" name="biz_collab" value="{{ opt }}" required> {{ opt }}</label>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="btn-row"><button type="submit" class="btn btn-primary">שמור/י והמשך/י ←</button></div>
+    </form>
+  </div>
+</div>
 {% endblock %}

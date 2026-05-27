@@ -1,5 +1,30 @@
-<!DOCTYPE html><html dir="rtl" lang="he"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{% block title %}סקר קהילת משחקי תפקידים{% endblock %}</title><link rel="icon" href="https://gate.roleplay.top/rpg-game.png"><link rel="stylesheet" href="/static/style.css"></head><body>
-<nav><a href="/"><img src="https://gate.roleplay.top/full-logo.png" alt="שער המשחקים" onerror="this.style.display='none'"></a><a href="/">דף הבית</a><a href="/survey">השאלון</a></nav>
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}סקר קהילת משחקי תפקידים בישראל{% endblock %}</title>
+  <link rel="icon" href="https://gate.roleplay.top/rpg-game.png">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<nav>
+  <a href="/"><img src="https://gate.roleplay.top/full-logo.png" alt="שער המשחקים" onerror="this.style.display='none'"></a>
+  <a href="/">דף הבית</a>
+  <a href="/survey">השאלון</a>
+</nav>
+
 {% block content %}{% endblock %}
-{% block delete_btn %}<div class="delete-btn-wrapper"><form method="post" action="/survey/delete" onsubmit="return confirm('האם למחוק את כל הנתונים שלך?')"><button type="submit">🗑 מחק נתונים</button></form></div>{% endblock %}
-<footer>© 2026 דוח הקהילה השנתי למשחקי תפקידים בישראל</footer></body></html>
+
+{% block delete_btn %}
+<div class="delete-btn-wrapper">
+  <form method="post" action="/survey/delete"
+        onsubmit="return confirm('האם למחוק את כל הנתונים שלך מהמערכת?')">
+    <button type="submit">🗑 מחק את כל הנתונים שלי</button>
+  </form>
+</div>
+{% endblock %}
+
+<footer>© 2025 דוח הקהילה השנתי למשחקי תפקידים בישראל</footer>
+</body>
+</html>

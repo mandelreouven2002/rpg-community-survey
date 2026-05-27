@@ -1,4 +1,16 @@
-{% extends "base.html" %}{% block delete_btn %}{% endblock %}{% block content %}
-<div class="container"><div class="card" style="text-align:center"><div style="font-size:4rem;margin-bottom:12px">🎲</div><h1>תודה רבה!</h1><p>השאלון נשלח בהצלחה.</p>
-<div style="margin-top:20px"><a href="/" class="btn btn-primary">חזרה לדף הבית</a></div></div></div>
+{% extends "base.html" %}
+{% block delete_btn %}{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="card" style="text-align:center">
+    <div style="font-size:4rem;margin-bottom:12px">🎲</div>
+    <h1>תודה רבה!</h1>
+    <p style="font-size:1.1rem;margin-top:12px">השאלון נשלח בהצלחה. תשובותיך יעזרו לנו למפות ולפתח את קהילת משחקי התפקידים בישראל.</p>
+    {% if lottery_email %}
+    <p style="margin-top:12px;color:#155724;background:#d4edda;padding:10px;border-radius:6px">נרשמת להגרלה עם כתובת <strong>{{ lottery_email }}</strong>. בהצלחה!</p>
+    {% endif %}
+    <p style="margin-top:20px;color:#666">הדוח יפורסם בסוף 2025 בשער המשחקים.</p>
+    <div style="margin-top:20px"><a href="/" class="btn btn-primary">חזרה לדף הבית</a></div>
+  </div>
+</div>
 {% endblock %}

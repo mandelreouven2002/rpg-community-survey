@@ -1,7 +1,59 @@
-{% extends "base.html" %}{% import "survey/_nav.html" as nav %}{% block content %}
-<div class="container"><div class="card">{{ nav.section_nav(active, 'section4', session, SECTION_LABELS) }}<h1>מנחים</h1>
-<form method="post" action="/survey/section4">
-<div class="form-group"><label>האם אתה/את מנחה כיום? *</label><div class="radio-group">{% for opt in ["כן, בקביעות","כן, מדי פעם","בעבר"] %}<label><input type="radio" name="gm_status" value="{{ opt }}" {% if data.get('gm_status')==opt %}checked{% endif %} required> {{ opt }}</label>{% endfor %}</div></div>
-<div class="form-group"><label>מנחה בתשלום? *</label><div class="radio-group">{% for opt in ["כן, מלא","לעיתים","לא"] %}<label><input type="radio" name="gm_paid" value="{{ opt }}" {% if data.get('gm_paid')==opt %}checked{% endif %} required> {{ opt }}</label>{% endfor %}</div></div>
-<div class="btn-row"><button type="submit" class="btn btn-primary">שמור/י והמשך/י ←</button></div></form></div></div>
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+  <div class="card">
+    <h1>חלק 4 — מנחים</h1>
+    <form method="post" action="/survey/section4">
+      <div class="form-group">
+        <label>האם אתה/את מנחה כיום? *</label>
+        <div class="radio-group">
+          {% for opt in ["כן, באופן קבוע","כן, מדי פעם","לא כרגע, אבל הנחיתי בעבר","מעולם לא הנחיתי אבל אני רוצה","לא מתעתד/ת להנחות"] %}
+          <label><input type="radio" name="gm_status" value="{{ opt }}" required> {{ opt }}</label>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="form-group">
+        <label>כמה שחקנים בממוצע בקבוצות שאתה/את מנחה? *</label>
+        <div class="radio-group">
+          {% for opt in ["2","3–4","5–6","7–8","יותר מ-8","משתנה"] %}
+          <label><input type="radio" name="gm_group_size" value="{{ opt }}" required> {{ opt }}</label>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="form-group">
+        <label>באילו שיטות אתה/את מנחה? (ניתן לבחור כמה)</label>
+        <div class="checkbox-group">
+          {% for opt in ["מבוכים ודרקונים 5e","Pathfinder","Call of Cthulhu","Fate","Powered by the Apocalypse","שיטה שיצרתי","שיטות בעברית","שיטות אינדי","אחרות"] %}
+          <label><input type="checkbox" name="gm_systems" value="{{ opt }}"> {{ opt }}</label>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="form-group">
+        <label>האם אתה/את מנחה בתשלום? *</label>
+        <div class="radio-group">
+          {% for opt in ["כן, בתשלום מלא","לעיתים, חלקית","לא, מנחה ללא תשלום","מעוניין/ת להתחיל להנחות בתשלום"] %}
+          <label><input type="radio" name="gm_paid" value="{{ opt }}" required> {{ opt }}</label>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="form-group">
+        <label>מה הקשיים המרכזיים שלך כמנחה?</label>
+        <div class="checkbox-group">
+          {% for opt in ["קשה למצוא שחקנים","קשה לתאם זמנים","חוסר זמן להכנה","קשה למצוא מקום לשחק","חוסר ניסיון / ביטחון","חוסר חומרים בעברית","חוסר קהילת מנחים להיוועץ בה","שחיקה"] %}
+          <label><input type="checkbox" name="gm_difficulties" value="{{ opt }}"> {{ opt }}</label>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="form-group">
+        <label>האם היית מעוניין/ת בהכשרת מנחים? *</label>
+        <div class="radio-group">
+          {% for opt in ["כן, מאוד","כן, אם יהיה זמין","לא צריך/ה, כבר מנוסה/ת","לא מעוניין/ת"] %}
+          <label><input type="radio" name="gm_training" value="{{ opt }}" required> {{ opt }}</label>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="btn-row"><button type="submit" class="btn btn-primary">שמור/י והמשך/י ←</button></div>
+    </form>
+  </div>
+</div>
 {% endblock %}

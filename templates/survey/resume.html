@@ -1,3 +1,17 @@
-{% extends "base.html" %}{% block delete_btn %}{% endblock %}{% block content %}
-<div class="container"><div class="card"><h1>ברוך/ה שב/ה!</h1><p>מצאנו מילוי שאלון לא גמור מהכתובת שלך.</p><form method="post" action="/survey/resume" style="margin-top:20px"><div class="btn-row"><button name="action" value="continue" class="btn btn-primary">המשך/י מאיפה שעצרתי</button><button name="action" value="new" class="btn btn-danger" onclick="return confirm('הכל יימחק. להתחיל מחדש?')">התחל/י מחדש</button></div></form></div></div>
+{% extends "base.html" %}
+{% block delete_btn %}{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="card">
+    <h1>ברוך/ה שב/ה!</h1>
+    <p>מצאנו מילוי שאלון לא גמור מהכתובת שלך.</p>
+    <p style="margin-top:8px">החלק האחרון שמילאת: <strong>{{ SECTION_LABELS.get(session.current_section, session.current_section) }}</strong></p>
+    <form method="post" action="/survey/resume" style="margin-top:20px">
+      <div class="btn-row">
+        <button name="action" value="continue" class="btn btn-primary">המשך/י מאיפה שעצרתי</button>
+        <button name="action" value="new" class="btn btn-danger" onclick="return confirm('כל הנתונים הקודמים יימחקו. להתחיל מחדש?')">התחל/י מחדש</button>
+      </div>
+    </form>
+  </div>
+</div>
 {% endblock %}

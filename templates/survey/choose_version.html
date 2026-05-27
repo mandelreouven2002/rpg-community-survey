@@ -1,3 +1,26 @@
-{% extends "base.html" %}{% block delete_btn %}{% endblock %}{% block content %}
-<div class="container"><div class="card"><h1>בחירת גרסת השאלון</h1><form method="post" action="/survey/choose-version" style="margin-top:20px"><div class="radio-group"><label style="padding:14px;border:1px solid #ddd;border-radius:8px"><input type="radio" name="version" value="short" required><strong>גרסה קצרה (8–12 דקות)</strong></label><label style="padding:14px;border:1px solid #ddd;border-radius:8px"><input type="radio" name="version" value="long"><strong>גרסה מורחבת (20 דקות)</strong></label></div><button type="submit" class="btn btn-primary" style="margin-top:20px">התחל/י</button></form></div></div>
+{% extends "base.html" %}
+{% block delete_btn %}{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="card">
+    <h1>בחירת גרסת השאלון</h1>
+    <p>על בסיס מה שסימנת, ישנם <strong>{{ num_sections }}</strong> חלקים שרלוונטיים עבורך.</p>
+    <p style="margin-top:12px">באיזו גרסה תרצה/י לענות?</p>
+    <form method="post" action="/survey/choose-version" style="margin-top:20px">
+      <div class="radio-group">
+        <label style="font-weight:normal;padding:14px;border:1px solid #ddd;border-radius:8px;margin-bottom:10px;cursor:pointer">
+          <input type="radio" name="version" value="short" required>
+          <strong>גרסה קצרה (8–12 דקות)</strong><br>
+          <span style="font-size:.9rem;color:#555">~45–55 שאלות עם התניות — מומלץ לרוב המשיבים</span>
+        </label>
+        <label style="font-weight:normal;padding:14px;border:1px solid #ddd;border-radius:8px;cursor:pointer">
+          <input type="radio" name="version" value="long">
+          <strong>גרסה מורחבת (20 דקות)</strong><br>
+          <span style="font-size:.9rem;color:#555">שאלות נוספות לעומק — עסקים, יצירה, בטיחות, כנסים</span>
+        </label>
+      </div>
+      <button type="submit" class="btn btn-primary" style="margin-top:20px">התחל/י</button>
+    </form>
+  </div>
+</div>
 {% endblock %}
