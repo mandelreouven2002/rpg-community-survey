@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="top-bar">
-  <a class="back-btn" href="/survey/section9">➔ חזור</a>
+  <a class="back-btn" href="/survey/part16">➔ חזור</a>
   <div class="progress-container"><div class="progress-bar" style="width:100%"></div></div>
   <div class="step-text">שליחה</div>
 </div>
@@ -17,9 +17,7 @@
         <h3>{{ title }}</h3>
         <ul>
           {% for key, value in answers.items() %}
-            {% if not key.startswith("_") %}
-              <li><strong>{{ key }}:</strong> {{ value }}</li>
-            {% endif %}
+            <li><strong>{{ key }}:</strong> {{ value }}</li>
           {% endfor %}
         </ul>
       {% endfor %}
