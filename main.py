@@ -1,5 +1,7 @@
 import csv
 import hashlib
+import hmac
+import os
 import io
 import json
 import uuid
@@ -1095,8 +1097,502 @@ def delete_my_data(
     return response
 
 
+
+ADMIN_COOKIE_NAME = "rpg_admin_auth"
+ADMIN_COOKIE_MAX_AGE = 60 * 60 * 8
+
+SUBMITTED_SQL = """
+(
+    COALESCE(s.submitted, FALSE) = TRUE
+    OR COALESCE(s.is_submitted, FALSE) = TRUE
+)
+"""
+
+
+def admin_secret() -> str | None:
+    return os.getenv("ADMIN_PASSWORD") or os.getenv("ADMIN_SECRET")
+
+
+def make_admin_cookie_value() -> str:
+    secret = admin_secret()
+    if not secret:
+        return ""
+    return hmac.new(
+        secret.encode("utf-8"),
+        b"rpg-community-survey-admin",
+        hashlib.sha256,
+    ).hexdigest()
+
+
+def admin_is_authenticated(request: Request) -> bool:
+    secret = admin_secret()
+    if not secret:
+        return False
+
+    supplied = request.cookies.get(ADMIN_COOKIE_NAME, "")
+    expected = make_admin_cookie_value()
+
+    return bool(supplied) and hmac.compare_digest(supplied, expected)
+
+
+def admin_rows(db: Session, query: str, params: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    try:
+        return [dict(row) for row in db.execute(text(query), params or {}).mappings().all()]
+    except Exception:
+        db.rollback()
+        return []
+
+
+def admin_one(db: Session, query: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+    rows = admin_rows(db, query, params)
+    return rows[0] if rows else {}
+
+
+def admin_scalar(db: Session, query: str, params: dict[str, Any] | None = None, default=0):
+    try:
+        value = db.execute(text(query), params or {}).scalar()
+        return default if value is None else value
+    except Exception:
+        db.rollback()
+        return default
+
+
+def add_share(rows: list[dict[str, Any]], count_key: str = "count") -> list[dict[str, Any]]:
+    total = sum(int(row.get(count_key) or 0) for row in rows)
+
+    for row in rows:
+        count = int(row.get(count_key) or 0)
+        row["share"] = round((count / total) * 100, 1) if total else 0
+
+    return rows
+
+
+def top_json_values(db: Session, table: str, column: str, limit: int = 8) -> list[dict[str, Any]]:
+    rows = admin_rows(
+        db,
+        f"""
+        SELECT x.label AS label, COUNT(*)::int AS count
+        FROM survey_sessions s
+        JOIN {table} p ON p.session_id = s.id
+        CROSS JOIN LATERAL jsonb_array_elements_text(
+            COALESCE(p.{column}::jsonb, '[]'::jsonb)
+        ) AS x(label)
+        WHERE {SUBMITTED_SQL}
+        GROUP BY x.label
+        ORDER BY count DESC, label ASC
+        LIMIT :limit
+        """,
+        {"limit": limit},
+    )
+    return add_share(rows)
+
+
+def choice_counts(db: Session, table: str, column: str, limit: int = 8) -> list[dict[str, Any]]:
+    rows = admin_rows(
+        db,
+        f"""
+        SELECT COALESCE(NULLIF(p.{column}::text, ''), 'לא ידוע') AS label,
+               COUNT(*)::int AS count
+        FROM survey_sessions s
+        JOIN {table} p ON p.session_id = s.id
+        WHERE {SUBMITTED_SQL}
+        GROUP BY label
+        ORDER BY count DESC, label ASC
+        LIMIT :limit
+        """,
+        {"limit": limit},
+    )
+    return add_share(rows)
+
+
+def probability_card(db: Session, title: str, query: str, note: str) -> dict[str, Any]:
+    row = admin_one(db, query)
+    yes = int(row.get("yes") or 0)
+    total = int(row.get("total") or 0)
+
+    if total == 0:
+        return {
+            "title": title,
+            "value": "אין מספיק נתונים",
+            "yes": yes,
+            "total": total,
+            "share": 0,
+            "note": note,
+        }
+
+    share = round((yes / total) * 100, 1)
+    return {
+        "title": title,
+        "value": f"{share}%",
+        "yes": yes,
+        "total": total,
+        "share": share,
+        "note": note,
+    }
+
+
+def rate(db: Session, query: str) -> float:
+    row = admin_one(db, query)
+    yes = int(row.get("yes") or 0)
+    total = int(row.get("total") or 0)
+    return (yes / total) * 100 if total else 0
+
+
+def build_admin_dashboard(db: Session) -> dict[str, Any]:
+    total_sessions = int(admin_scalar(db, "SELECT COUNT(*) FROM survey_sessions", default=0))
+    submitted = int(admin_scalar(
+        db,
+        """
+        SELECT COUNT(*)
+        FROM survey_sessions s
+        WHERE COALESCE(s.submitted, FALSE) = TRUE
+           OR COALESCE(s.is_submitted, FALSE) = TRUE
+        """,
+        default=0,
+    ))
+    drafts = max(total_sessions - submitted, 0)
+
+    raffle_emails = int(admin_scalar(db, "SELECT COUNT(*) FROM raffle_emails", default=0))
+    active_last_7_days = int(admin_scalar(
+        db,
+        """
+        SELECT COUNT(*)
+        FROM survey_sessions
+        WHERE created_at >= NOW() - INTERVAL '7 days'
+        """,
+        default=0,
+    ))
+
+    completion_rate = round((submitted / total_sessions) * 100, 1) if total_sessions else 0
+
+    nps = admin_one(
+        db,
+        f"""
+        WITH scores AS (
+            SELECT NULLIF(p.nps_score::text, '')::numeric AS score
+            FROM survey_sessions s
+            JOIN part16_vision p ON p.session_id = s.id
+            WHERE {SUBMITTED_SQL}
+              AND p.nps_score IS NOT NULL
+        )
+        SELECT
+            COUNT(*)::int AS total,
+            ROUND(AVG(score), 2) AS avg_score,
+            SUM(CASE WHEN score >= 9 THEN 1 ELSE 0 END)::int AS promoters,
+            SUM(CASE WHEN score BETWEEN 7 AND 8 THEN 1 ELSE 0 END)::int AS passives,
+            SUM(CASE WHEN score <= 6 THEN 1 ELSE 0 END)::int AS detractors
+        FROM scores
+        """,
+    )
+
+    nps_total = int(nps.get("total") or 0)
+    promoters = int(nps.get("promoters") or 0)
+    detractors = int(nps.get("detractors") or 0)
+    nps_score = round(((promoters - detractors) / nps_total) * 100, 1) if nps_total else None
+
+    survey_types = add_share(admin_rows(
+        db,
+        """
+        SELECT COALESCE(NULLIF(survey_type, ''), 'לא נבחר') AS label,
+               COUNT(*)::int AS count
+        FROM survey_sessions
+        GROUP BY label
+        ORDER BY count DESC
+        """
+    ))
+
+    progress = add_share(admin_rows(
+        db,
+        """
+        SELECT COALESCE(NULLIF(current_section, ''), 'לא ידוע') AS label,
+               COUNT(*)::int AS count
+        FROM survey_sessions
+        WHERE COALESCE(submitted, FALSE) = FALSE
+          AND COALESCE(is_submitted, FALSE) = FALSE
+        GROUP BY label
+        ORDER BY count DESC
+        """
+    ))
+
+    monthly = admin_rows(
+        db,
+        """
+        SELECT TO_CHAR(DATE_TRUNC('day', created_at), 'YYYY-MM-DD') AS label,
+               COUNT(*)::int AS count
+        FROM survey_sessions
+        WHERE created_at >= NOW() - INTERVAL '30 days'
+        GROUP BY DATE_TRUNC('day', created_at)
+        ORDER BY label ASC
+        """
+    )
+
+    regions = choice_counts(db, "part1_basic", "region", 12)
+    roles = top_json_values(db, "part1_basic", "roles", 12)
+    systems = top_json_values(db, "part3_tabletop", "systems_played", 10)
+    genres = top_json_values(db, "part3_tabletop", "favorite_genres", 10)
+    barriers = top_json_values(db, "part9_barriers", "barriers_to_start", 10)
+    projects = top_json_values(db, "part16_vision", "helpful_projects", 10)
+    conventions = top_json_values(db, "part6_conventions", "con_names", 10)
+
+    belonging = choice_counts(db, "part11_community", "belonging_level", 5)
+    convention_attendance = choice_counts(db, "part6_conventions", "attended_con", 5)
+    play_frequency = choice_counts(db, "part3_tabletop", "frequency", 8)
+
+    convention_rate = rate(
+        db,
+        f"""
+        SELECT
+            COUNT(*) FILTER (WHERE COALESCE(p.attended_con::text, '') LIKE 'כן%')::int AS yes,
+            COUNT(*)::int AS total
+        FROM survey_sessions s
+        JOIN part6_conventions p ON p.session_id = s.id
+        WHERE {SUBMITTED_SQL}
+        """
+    )
+
+    monthly_player_rate = rate(
+        db,
+        f"""
+        SELECT
+            COUNT(*) FILTER (
+                WHERE p.frequency IN ('כמה פעמים בשבוע', 'פעם בשבוע', 'פעמיים בחודש', 'פעמיים־שלוש בחודש', 'פעם בחודש')
+            )::int AS yes,
+            COUNT(*)::int AS total
+        FROM survey_sessions s
+        JOIN part3_tabletop p ON p.session_id = s.id
+        WHERE {SUBMITTED_SQL}
+        """
+    )
+
+    belonging_high_rate = rate(
+        db,
+        f"""
+        SELECT
+            COUNT(*) FILTER (WHERE NULLIF(p.belonging_level::text, '')::numeric >= 4)::int AS yes,
+            COUNT(*)::int AS total
+        FROM survey_sessions s
+        JOIN part11_community p ON p.session_id = s.id
+        WHERE {SUBMITTED_SQL}
+          AND p.belonging_level IS NOT NULL
+        """
+    )
+
+    creator_rate = rate(
+        db,
+        f"""
+        SELECT
+            COUNT(*) FILTER (
+                WHERE COALESCE(p.created_content::jsonb, '[]'::jsonb) <> '[]'::jsonb
+                  AND NOT COALESCE(p.created_content::jsonb, '[]'::jsonb) ? 'לא יצרתי'
+            )::int AS yes,
+            COUNT(*)::int AS total
+        FROM survey_sessions s
+        JOIN part14_creation p ON p.session_id = s.id
+        WHERE {SUBMITTED_SQL}
+        """
+    )
+
+    gm_rate = rate(
+        db,
+        f"""
+        SELECT
+            COUNT(*) FILTER (WHERE COALESCE(p.gm_currently::text, '') LIKE 'כן%')::int AS yes,
+            COUNT(*)::int AS total
+        FROM survey_sessions s
+        JOIN part4_gms p ON p.session_id = s.id
+        WHERE {SUBMITTED_SQL}
+        """
+    )
+
+    nps_promoter_rate = round((promoters / nps_total) * 100, 1) if nps_total else 0
+
+    indices = [
+        {
+            "title": "מדד פעילות",
+            "score": round((monthly_player_rate + convention_rate + gm_rate + creator_rate) / 4, 1),
+            "note": "מבוסס על משחק חודשי, כנסים, הנחיה ויצירת תוכן.",
+        },
+        {
+            "title": "מדד שייכות",
+            "score": round((belonging_high_rate + convention_rate + nps_promoter_rate) / 3, 1),
+            "note": "מבוסס על שייכות גבוהה, השתתפות בכנסים ונכונות להמליץ.",
+        },
+        {
+            "title": "מדד צמיחה",
+            "score": round((nps_promoter_rate + monthly_player_rate + creator_rate) / 3, 1),
+            "note": "אינדיקציה ראשונית לאנרגיה קהילתית ופוטנציאל התרחבות.",
+        },
+    ]
+
+    predictions = [
+        probability_card(
+            db,
+            "הסתברות השתתפות בכנס בקרב שחקנים חודשיים ומעלה",
+            f"""
+            SELECT
+                COUNT(*) FILTER (WHERE COALESCE(c.attended_con::text, '') LIKE 'כן%')::int AS yes,
+                COUNT(*)::int AS total
+            FROM survey_sessions s
+            JOIN part3_tabletop t ON t.session_id = s.id
+            LEFT JOIN part6_conventions c ON c.session_id = s.id
+            WHERE {SUBMITTED_SQL}
+              AND t.frequency IN ('כמה פעמים בשבוע', 'פעם בשבוע', 'פעמיים בחודש', 'פעמיים־שלוש בחודש', 'פעם בחודש')
+            """,
+            "עוזר להבין אם פעילות משחק קבועה מנבאת הגעה לכנסים.",
+        ),
+        probability_card(
+            db,
+            "הסתברות נכונות לשלם על פעילות ילדים בקרב הורים שמזהים ערך גבוה",
+            f"""
+            SELECT
+                COUNT(*) FILTER (
+                    WHERE p.willing_to_pay IN ('כן', 'אולי', 'כבר משלם/ת')
+                )::int AS yes,
+                COUNT(*)::int AS total
+            FROM survey_sessions s
+            JOIN part8_parents p ON p.session_id = s.id
+            WHERE {SUBMITTED_SQL}
+              AND NULLIF(p.positive_activity::text, '')::numeric >= 4
+            """,
+            "אינדיקציה לביקוש לחוגים, סדנאות ופעילות לילדים.",
+        ),
+        probability_card(
+            db,
+            "הסתברות משחק אונליין מחוץ לגוש דן ותל אביב",
+            f"""
+            SELECT
+                COUNT(*) FILTER (
+                    WHERE COALESCE(t.online_vs_physical::text, '') LIKE '%אונליין%'
+                )::int AS yes,
+                COUNT(*)::int AS total
+            FROM survey_sessions s
+            JOIN part1_basic b ON b.session_id = s.id
+            JOIN part3_tabletop t ON t.session_id = s.id
+            WHERE {SUBMITTED_SQL}
+              AND COALESCE(b.region, '') NOT IN ('גוש דן', 'תל אביב-יפו', 'תל אביב־יפו')
+            """,
+            "בודק אם אונליין משמש פתרון לפער גאוגרפי.",
+        ),
+        probability_card(
+            db,
+            "הסתברות שייכות גבוהה בקרב משתתפי כנסים",
+            f"""
+            SELECT
+                COUNT(*) FILTER (
+                    WHERE NULLIF(comm.belonging_level::text, '')::numeric >= 4
+                )::int AS yes,
+                COUNT(*)::int AS total
+            FROM survey_sessions s
+            JOIN part6_conventions c ON c.session_id = s.id
+            JOIN part11_community comm ON comm.session_id = s.id
+            WHERE {SUBMITTED_SQL}
+              AND COALESCE(c.attended_con::text, '') LIKE 'כן%'
+            """,
+            "בודק קשר בין כנסים לבין תחושת שייכות קהילתית.",
+        ),
+    ]
+
+    stats_cards = [
+        {"label": "סה״כ טפסים", "value": total_sessions},
+        {"label": "טפסים שנשלחו", "value": submitted},
+        {"label": "טיוטות פתוחות", "value": drafts},
+        {"label": "אחוז השלמה", "value": f"{completion_rate}%"},
+        {"label": "נרשמים לעדכונים/הגרלה", "value": raffle_emails},
+        {"label": "טפסים ב־7 ימים אחרונים", "value": active_last_7_days},
+    ]
+
+    return {
+        "stats_cards": stats_cards,
+        "nps": {
+            "avg_score": nps.get("avg_score"),
+            "nps_score": nps_score,
+            "total": nps_total,
+            "promoters": promoters,
+            "passives": int(nps.get("passives") or 0),
+            "detractors": detractors,
+        },
+        "survey_types": survey_types,
+        "progress": progress,
+        "monthly": monthly,
+        "regions": regions,
+        "roles": roles,
+        "systems": systems,
+        "genres": genres,
+        "barriers": barriers,
+        "projects": projects,
+        "conventions": conventions,
+        "belonging": belonging,
+        "convention_attendance": convention_attendance,
+        "play_frequency": play_frequency,
+        "indices": indices,
+        "predictions": predictions,
+        "sample_warning": submitted < 50,
+    }
+
+
+@app.get("/admin/login", response_class=HTMLResponse)
+def admin_login_get(request: Request):
+    return render(
+        request,
+        "admin/login.html",
+        configured=bool(admin_secret()),
+    )
+
+
+@app.post("/admin/login")
+async def admin_login_post(request: Request):
+    form = await request.form()
+    password = str(form.get("password", ""))
+
+    secret = admin_secret()
+    if not secret:
+        return render(
+            request,
+            "admin/login.html",
+            configured=False,
+            error="לא הוגדרה סיסמת ADMIN_PASSWORD ב־Railway.",
+        )
+
+    if not hmac.compare_digest(password, secret):
+        return render(
+            request,
+            "admin/login.html",
+            configured=True,
+            error="סיסמה שגויה.",
+        )
+
+    response = RedirectResponse("/admin", status_code=303)
+    response.set_cookie(
+        ADMIN_COOKIE_NAME,
+        make_admin_cookie_value(),
+        max_age=ADMIN_COOKIE_MAX_AGE,
+        httponly=True,
+        samesite="lax",
+    )
+    return response
+
+
+@app.post("/admin/logout")
+def admin_logout():
+    response = RedirectResponse("/", status_code=303)
+    response.delete_cookie(ADMIN_COOKIE_NAME)
+    return response
+
+
+@app.get("/admin", response_class=HTMLResponse)
+def admin_dashboard(request: Request, db: Session = Depends(get_db)):
+    if not admin_is_authenticated(request):
+        return RedirectResponse("/admin/login", status_code=303)
+
+    dashboard = build_admin_dashboard(db)
+    return render(request, "admin/dashboard.html", dashboard=dashboard)
+
+
 @app.get("/admin/export.csv")
-def export_csv(db: Session = Depends(get_db)):
+def export_csv(request: Request, db: Session = Depends(get_db)):
+    if not admin_is_authenticated(request):
+        return RedirectResponse("/admin/login", status_code=303)
+
     sessions = db.execute(
         text("""
             SELECT id, survey_type, submitted, is_submitted, current_section, created_at, updated_at

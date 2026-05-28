@@ -1,0 +1,17 @@
+{% if rows %}
+  <div class="bar-list">
+    {% for row in rows %}
+      <div class="bar-item">
+        <div class="bar-item-top">
+          <span>{{ row.label }}</span>
+          <strong>{{ row.count }}</strong>
+        </div>
+        <div class="admin-bar">
+          <div style="width: {{ row.share or 0 }}%"></div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <p>אין עדיין נתונים להצגה.</p>
+{% endif %}

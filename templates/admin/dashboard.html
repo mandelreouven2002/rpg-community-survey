@@ -1,43 +1,180 @@
-<!DOCTYPE html>
-<html dir="rtl" lang="he">
-<head>
-  <meta charset="UTF-8">
-  <title>לוח בקרה</title>
-  <link rel="stylesheet" href="/static/style.css">
-</head>
-<body>
-<nav><a href="/">ראשי</a></nav>
-<div class="container">
-  <div class="card">
-    <h1>לוח בקרה — סקר קהילת משחקי תפקידים</h1>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:20px 0">
-      <div style="background:#e8f4f8;padding:20px;border-radius:8px;text-align:center">
-        <div style="font-size:2.5rem;font-weight:bold;color:var(--brand)">{{ total }}</div>
-        <div>סה"כ מילויים</div>
-      </div>
-      <div style="background:#d4edda;padding:20px;border-radius:8px;text-align:center">
-        <div style="font-size:2.5rem;font-weight:bold;color:#155724">{{ submitted }}</div>
-        <div>נשלחו</div>
-      </div>
-      <div style="background:#fff3cd;padding:20px;border-radius:8px;text-align:center">
-        <div style="font-size:2.5rem;font-weight:bold;color:#856404">{{ in_progress }}</div>
-        <div>בתהליך</div>
-      </div>
+{% extends "base.html" %}
+{% block delete_btn %}{% endblock %}
+{% block content %}
+<main class="container admin-container">
+  <section class="admin-header">
+    <div>
+      <h1>דשבורד דוח הקהילה</h1>
+      <p>ניתוח חי של תשובות הסקר, מדדים ותחזיות אמפיריות ראשוניות.</p>
     </div>
-    <h2 style="margin-top:20px">פילוח לפי אזור</h2>
-    <table style="width:100%;border-collapse:collapse;margin-top:10px">
-      <tr style="background:var(--brand);color:white">
-        <th style="padding:8px 12px;text-align:right">אזור</th>
-        <th style="padding:8px 12px;text-align:center">מספר משיבים</th>
-      </tr>
-      {% for region, count in region_counts.items() %}
-      <tr style="border-bottom:1px solid #eee">
-        <td style="padding:8px 12px">{{ region }}</td>
-        <td style="padding:8px 12px;text-align:center">{{ count }}</td>
-      </tr>
+
+    <div class="admin-actions">
+      <a href="/admin/export.csv" class="btn btn-gold">ייצוא CSV</a>
+      <form method="post" action="/admin/logout">
+        <button type="submit" class="btn btn-soft">יציאה</button>
+      </form>
+    </div>
+  </section>
+
+  {% if dashboard.sample_warning %}
+    <section class="notice-box">
+      <strong>הערת מדגם:</strong>
+      יש עדיין פחות מ־50 טפסים שנשלחו. הנתונים שימושיים לבדיקת כיוון, אבל לא כדאי לפרסם מסקנות חזקות מדי בשלב הזה.
+    </section>
+  {% endif %}
+
+  <section class="admin-kpis">
+    {% for card in dashboard.stats_cards %}
+      <article class="kpi-card">
+        <span>{{ card.label }}</span>
+        <strong>{{ card.value }}</strong>
+      </article>
+    {% endfor %}
+  </section>
+
+  <section class="admin-grid">
+    <article class="card admin-card">
+      <h2>NPS ונכונות המלצה</h2>
+      <div class="big-number">
+        {% if dashboard.nps.nps_score is not none %}
+          {{ dashboard.nps.nps_score }}
+        {% else %}
+          אין נתונים
+        {% endif %}
+      </div>
+      <p>
+        ממוצע דירוג:
+        <strong>{{ dashboard.nps.avg_score or "אין נתונים" }}</strong>
+        |
+        מספר תשובות:
+        <strong>{{ dashboard.nps.total }}</strong>
+      </p>
+      <div class="mini-stats">
+        <span>ממליצים: {{ dashboard.nps.promoters }}</span>
+        <span>נייטרליים: {{ dashboard.nps.passives }}</span>
+        <span>מבקרים: {{ dashboard.nps.detractors }}</span>
+      </div>
+    </article>
+
+    <article class="card admin-card">
+      <h2>מדדים מחקריים</h2>
+      {% for item in dashboard.indices %}
+        <div class="metric-row">
+          <div>
+            <strong>{{ item.title }}</strong>
+            <small>{{ item.note }}</small>
+          </div>
+          <span>{{ item.score }}/100</span>
+        </div>
+        <div class="admin-bar"><div style="width: {{ item.score }}%"></div></div>
       {% endfor %}
-    </table>
-  </div>
-</div>
-</body>
-</html>
+    </article>
+  </section>
+
+  <section class="admin-grid">
+    <article class="card admin-card">
+      <h2>סוגי שאלון</h2>
+      {% set rows = dashboard.survey_types %}
+      {% include "admin/partials/bar_list_rows.html" %}
+    </article>
+
+    <article class="card admin-card">
+      <h2>טיוטות לפי שלב נוכחי</h2>
+      {% set rows = dashboard.progress %}
+      {% include "admin/partials/bar_list_rows.html" %}
+    </article>
+  </section>
+
+  <section class="admin-grid">
+    <article class="card admin-card">
+      <h2>פילוח אזורים</h2>
+      {% set rows = dashboard.regions %}
+      {% include "admin/partials/bar_list_rows.html" %}
+    </article>
+
+    <article class="card admin-card">
+      <h2>קשר לתחום</h2>
+      {% set rows = dashboard.roles %}
+      {% include "admin/partials/bar_list_rows.html" %}
+    </article>
+  </section>
+
+  <section class="admin-grid">
+    <article class="card admin-card">
+      <h2>שיטות משחק פופולריות</h2>
+      {% set rows = dashboard.systems %}
+      {% include "admin/partials/bar_list_rows.html" %}
+    </article>
+
+    <article class="card admin-card">
+      <h2>ז׳אנרים מועדפים</h2>
+      {% set rows = dashboard.genres %}
+      {% include "admin/partials/bar_list_rows.html" %}
+    </article>
+  </section>
+
+  <section class="admin-grid">
+    <article class="card admin-card">
+      <h2>חסמי כניסה מרכזיים</h2>
+      {% set rows = dashboard.barriers %}
+      {% include "admin/partials/bar_list_rows.html" %}
+    </article>
+
+    <article class="card admin-card">
+      <h2>פרויקטים שהקהילה צריכה</h2>
+      {% set rows = dashboard.projects %}
+      {% include "admin/partials/bar_list_rows.html" %}
+    </article>
+  </section>
+
+  <section class="admin-grid">
+    <article class="card admin-card">
+      <h2>כנסים ואירועים</h2>
+      {% set rows = dashboard.conventions %}
+      {% include "admin/partials/bar_list_rows.html" %}
+    </article>
+
+    <article class="card admin-card">
+      <h2>תדירות משחק</h2>
+      {% set rows = dashboard.play_frequency %}
+      {% include "admin/partials/bar_list_rows.html" %}
+    </article>
+  </section>
+
+  <section class="card admin-card">
+    <h2>תחזיות אמפיריות</h2>
+    <p>
+      אלו אינן תחזיות “קסם” או מודל AI מלא. אלה הסתברויות שנמדדות מתוך התשובות שנאספו עד עכשיו.
+      ככל שיהיו יותר תשובות, המדדים יהיו יציבים יותר.
+    </p>
+
+    <div class="prediction-grid">
+      {% for item in dashboard.predictions %}
+        <article class="prediction-card">
+          <h3>{{ item.title }}</h3>
+          <strong>{{ item.value }}</strong>
+          <p>{{ item.note }}</p>
+          <small>מבוסס על {{ item.total }} תשובות רלוונטיות.</small>
+          <div class="admin-bar"><div style="width: {{ item.share }}%"></div></div>
+        </article>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="card admin-card">
+    <h2>טפסים ב־30 הימים האחרונים</h2>
+    {% if dashboard.monthly %}
+      <div class="daily-list">
+        {% for row in dashboard.monthly %}
+          <div class="daily-row">
+            <span>{{ row.label }}</span>
+            <strong>{{ row.count }}</strong>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p>אין עדיין נתונים להצגה.</p>
+    {% endif %}
+  </section>
+</main>
+{% endblock %}

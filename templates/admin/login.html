@@ -1,23 +1,32 @@
-<!DOCTYPE html>
-<html dir="rtl" lang="he">
-<head>
-  <meta charset="UTF-8">
-  <title>כניסת מנהל</title>
-  <link rel="stylesheet" href="/static/style.css">
-</head>
-<body>
-<div class="container" style="max-width:400px;margin-top:80px">
-  <div class="card">
+{% extends "base.html" %}
+{% block delete_btn %}{% endblock %}
+{% block content %}
+<main class="container">
+  <section class="card admin-login-card">
     <h1>כניסת מנהל</h1>
-    {% if error %}<div class="error-msg">{{ error }}</div>{% endif %}
-    <form method="post" action="/admin" style="margin-top:16px">
-      <div class="form-group">
-        <label>סיסמה</label>
-        <input type="password" name="password" required autofocus>
+
+    <p>
+      דף זה מיועד לצפייה בנתוני הדוח, ניתוחים ותחזיות בלבד.
+    </p>
+
+    {% if not configured %}
+      <div class="error-msg">
+        לא הוגדרה סיסמת מנהל. יש להגדיר ב־Railway משתנה סביבה בשם <strong>ADMIN_PASSWORD</strong>.
       </div>
-      <button type="submit" class="btn btn-primary">כניסה</button>
+    {% endif %}
+
+    {% if error %}
+      <div class="error-msg">{{ error }}</div>
+    {% endif %}
+
+    <form method="post" action="/admin/login" class="form">
+      <div class="form-group">
+        <label>סיסמת מנהל</label>
+        <input type="password" name="password" autocomplete="current-password" required>
+      </div>
+
+      <button type="submit" class="btn btn-primary">כניסה לדשבורד</button>
     </form>
-  </div>
-</div>
-</body>
-</html>
+  </section>
+</main>
+{% endblock %}
