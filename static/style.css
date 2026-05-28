@@ -1075,3 +1075,58 @@ ul {
     flex-direction: column;
   }
 }
+
+.inline-form {
+  display: inline-flex;
+  margin: 0;
+}
+
+.btn-danger {
+  background: var(--danger);
+  color: #fff;
+}
+
+.btn-danger:hover {
+  background: #7f2525;
+}
+
+.delete-modal-card {
+  max-width: 680px;
+}
+
+.delete-confirm-list {
+  margin: 18px 0 0;
+  padding-inline-start: 1.25rem;
+  color: var(--text-soft);
+}
+
+.delete-confirm-list li {
+  margin-bottom: 6px;
+}
+
+.checkbox-group label,
+.radio-group label {
+  align-items: center;
+}
+
+.checkbox-group input[type="checkbox"],
+.checkbox-group input[type="radio"],
+.radio-group input[type="checkbox"],
+.radio-group input[type="radio"] {
+  flex: 0 0 auto;
+  width: 1.12rem;
+  height: 1.12rem;
+  margin: 0;
+  align-self: center;
+  transform: translateY(0);
+}
+
+@media (max-width: 760px) {
+  .inline-form {
+    width: 100%;
+  }
+
+  .inline-form button {
+    width: 100%;
+  }
+}

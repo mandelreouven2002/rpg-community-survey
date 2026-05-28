@@ -25,9 +25,36 @@
 
   {% block delete_btn %}
   <div class="delete-btn-wrapper">
-    <form method="post" action="/survey/delete" onsubmit="return confirm('האם למחוק את כל הנתונים שלך מהמערכת?')">
-      <button type="submit" id="reset-btn">מחיקת הטופס</button>
-    </form>
+    <button type="button" id="reset-btn" data-open-delete-modal>
+      מחיקת הטופס
+    </button>
+  </div>
+
+  <div class="modal-backdrop" id="deleteModal" aria-hidden="true">
+    <section class="modal-card delete-modal-card" role="dialog" aria-modal="true" aria-labelledby="deleteModalTitle">
+      <h2 id="deleteModalTitle">מחיקת הטופס</h2>
+
+      <p>
+        פעולה זו תמחק לצמיתות את כל המידע שנשמר עבור הטופס הפתוח שלך ממסדי הנתונים:
+        תשובות שכבר נשמרו, התקדמות, טיוטה ונתוני השאלון המקושרים לכתובת ה־IP הנוכחית.
+      </p>
+
+      <div class="notice-box">
+        <strong>חשוב:</strong>
+        לאחר האישור לא ניתן יהיה לשחזר את המידע. אם תרצה/י להשתתף בהמשך, יהיה צורך להתחיל שאלון חדש מההתחלה.
+      </div>
+
+      <ul class="delete-confirm-list">
+        <li>הטיוטה הנוכחית תימחק מכל טבלאות השאלון.</li>
+        <li>התקדמות המילוי תימחק.</li>
+        <li>הפעולה אינה הפיכה.</li>
+      </ul>
+
+      <form method="post" action="/survey/delete" class="modal-actions">
+        <button type="submit" class="btn btn-danger">כן, למחוק לצמיתות</button>
+        <button type="button" class="btn btn-soft" data-close-delete-modal>ביטול</button>
+      </form>
+    </section>
   </div>
   {% endblock %}
 
@@ -46,7 +73,36 @@
     }
   });
 
-  window.addEventListener('DOMContentLoaded', updateCardStyles);
+  window.addEventListener('DOMContentLoaded', function () {
+    updateCardStyles();
+
+    const deleteModal = document.getElementById('deleteModal');
+    const openDelete = document.querySelector('[data-open-delete-modal]');
+    const closeDelete = document.querySelector('[data-close-delete-modal]');
+
+    if (openDelete && deleteModal) {
+      openDelete.addEventListener('click', function () {
+        deleteModal.classList.add('is-visible');
+        deleteModal.setAttribute('aria-hidden', 'false');
+      });
+    }
+
+    if (closeDelete && deleteModal) {
+      closeDelete.addEventListener('click', function () {
+        deleteModal.classList.remove('is-visible');
+        deleteModal.setAttribute('aria-hidden', 'true');
+      });
+    }
+
+    if (deleteModal) {
+      deleteModal.addEventListener('click', function (event) {
+        if (event.target === deleteModal) {
+          deleteModal.classList.remove('is-visible');
+          deleteModal.setAttribute('aria-hidden', 'true');
+        }
+      });
+    }
+  });
   </script>
 </body>
 </html>

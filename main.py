@@ -848,7 +848,20 @@ def health():
 
 @app.get("/survey", response_class=HTMLResponse)
 def consent_get(request: Request, db: Session = Depends(get_db)):
-    return render(request, "survey/consent.html", **consent_context(request, db))
+    force_form = request.query_params.get("start") == "new"
+    return render(request, "survey/consent.html", **consent_context(request, db, force_form=force_form))
+
+
+@app.post("/survey/start-new")
+def survey_start_new(request: Request, db: Session = Depends(get_db)):
+    ip_hash = hash_ip(request)
+
+    delete_unsubmitted_by_ip(db, ip_hash)
+
+    response = RedirectResponse("/survey?start=new", status_code=303)
+    response.delete_cookie("session_id")
+    response.delete_cookie("respondent_id_hash")
+    return response
 
 
 @app.post("/survey/consent")

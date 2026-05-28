@@ -47,7 +47,7 @@
       <h2 id="resumeTitle">התחלת כבר את השאלון!</h2>
       <p>
         מצאנו טיוטה פתוחה של השאלון מהמכשיר או מהרשת הנוכחיים.
-        אפשר להמשיך מהמקום שבו עצרת, או להתחיל שאלון חדש מההתחלה.
+        אפשר להמשיך מהמקום שבו עצרת, או למחוק את הטיוטה הקודמת ולהתחיל שאלון חדש.
       </p>
 
       {% if existing_current_section %}
@@ -56,13 +56,21 @@
         </p>
       {% endif %}
 
+      <div class="notice-box">
+        <strong>אם תבחר/י להתחיל מחדש:</strong>
+        כל המידע שנשמר עבור הטיוטה הפתוחה המקושרת לכתובת ה־IP הנוכחית יימחק ממסדי הנתונים ולא ניתן יהיה לשחזר אותו.
+      </div>
+
       <div class="modal-actions">
         <button type="button" class="btn btn-primary" data-resume-choice="yes">
           כן, להמשיך מהמקום שעצרתי
         </button>
-        <button type="button" class="btn btn-soft" data-resume-choice="no">
-          לא, להתחיל מחדש
-        </button>
+
+        <form method="post" action="/survey/start-new" class="inline-form">
+          <button type="submit" class="btn btn-soft">
+            לא, למחוק ולהתחיל מחדש
+          </button>
+        </form>
       </div>
     </div>
 
