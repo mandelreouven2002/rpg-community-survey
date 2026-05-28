@@ -25,8 +25,12 @@
 
     root.setAttribute('data-font-size', settings.fontSize);
     root.setAttribute('data-theme', settings.theme);
+
     root.toggleAttribute('data-underline-links', Boolean(settings.underlineLinks));
     root.toggleAttribute('data-reduce-motion', Boolean(settings.reduceMotion));
+
+    root.classList.toggle('a11y-underline-links', Boolean(settings.underlineLinks));
+    root.classList.toggle('a11y-reduce-motion', Boolean(settings.reduceMotion));
 
     document.querySelectorAll('[data-font-size]').forEach(btn => {
       btn.setAttribute('aria-pressed', String(btn.dataset.fontSize === settings.fontSize));
@@ -43,6 +47,9 @@
     if (motionToggle) motionToggle.checked = Boolean(settings.reduceMotion);
   }
 
+  let settings = readSettings();
+  applySettings(settings);
+
   function openPanel() {
     const toggle = document.getElementById('accessibilityToggle');
     const panel = document.getElementById('accessibilityPanel');
@@ -52,8 +59,8 @@
     panel.hidden = false;
     toggle.setAttribute('aria-expanded', 'true');
 
-    const firstButton = panel.querySelector('button, input, select, textarea, a[href]');
-    if (firstButton) firstButton.focus();
+    const firstControl = panel.querySelector('button, input, select, textarea, a[href]');
+    if (firstControl) firstControl.focus();
   }
 
   function closePanel() {
@@ -68,7 +75,6 @@
   }
 
   document.addEventListener('DOMContentLoaded', function () {
-    let settings = readSettings();
     applySettings(settings);
 
     const toggle = document.getElementById('accessibilityToggle');

@@ -1363,3 +1363,107 @@ html[data-reduce-motion] *::after {
     width: calc(100vw - 24px);
   }
 }
+
+/* Final accessibility fixes */
+
+html.a11y-underline-links a,
+html[data-underline-links] a {
+  text-decoration-line: underline !important;
+  text-decoration-thickness: 0.12em !important;
+  text-underline-offset: 0.22em !important;
+}
+
+html.a11y-underline-links .btn,
+html[data-underline-links] .btn,
+html.a11y-underline-links button,
+html[data-underline-links] button {
+  text-decoration-line: none !important;
+}
+
+html.a11y-underline-links .site-nav-links a,
+html[data-underline-links] .site-nav-links a {
+  text-decoration-line: underline !important;
+  text-decoration-thickness: 0.12em !important;
+  text-underline-offset: 0.22em !important;
+}
+
+html.a11y-reduce-motion *,
+html.a11y-reduce-motion *::before,
+html.a11y-reduce-motion *::after,
+html[data-reduce-motion] *,
+html[data-reduce-motion] *::before,
+html[data-reduce-motion] *::after {
+  animation: none !important;
+  animation-duration: 0.001ms !important;
+  animation-delay: 0ms !important;
+  animation-iteration-count: 1 !important;
+  transition: none !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
+html.a11y-reduce-motion .btn:hover,
+html.a11y-reduce-motion button:hover,
+html.a11y-reduce-motion .site-nav-links a:hover,
+html.a11y-reduce-motion .checkbox-group label:hover,
+html.a11y-reduce-motion .radio-group label:hover,
+html[data-reduce-motion] .btn:hover,
+html[data-reduce-motion] button:hover,
+html[data-reduce-motion] .site-nav-links a:hover,
+html[data-reduce-motion] .checkbox-group label:hover,
+html[data-reduce-motion] .radio-group label:hover {
+  transform: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Privacy page button color fixes */
+
+.legal-page a.btn,
+.legal-page a.btn:visited {
+  text-decoration-line: none;
+}
+
+.legal-page a.btn-primary,
+.legal-page a.btn-primary:visited {
+  color: #ffffff !important;
+}
+
+.legal-page a.btn-gold,
+.legal-page a.btn-gold:visited {
+  color: #ffffff !important;
+}
+
+.legal-page a.btn-soft,
+.legal-page a.btn-soft:visited {
+  color: var(--brand-dark) !important;
+}
+
+html[data-theme="dark"] .legal-page a.btn-soft,
+html[data-theme="dark"] .legal-page a.btn-soft:visited {
+  color: var(--brand-dark) !important;
+}
+
+html[data-theme="contrast"] .legal-page a.btn-primary,
+html[data-theme="contrast"] .legal-page a.btn-gold,
+html[data-theme="contrast"] .legal-page a.btn-primary:visited,
+html[data-theme="contrast"] .legal-page a.btn-gold:visited {
+  background: #000000 !important;
+  color: #ffffff !important;
+  border-color: #000000 !important;
+}
+
+html[data-theme="contrast"] .legal-page a.btn-soft,
+html[data-theme="contrast"] .legal-page a.btn-soft:visited {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border-color: #000000 !important;
+}
