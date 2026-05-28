@@ -391,7 +391,15 @@ def save_part(db: Session, session_id: str, part: dict[str, Any], form):
 
     insert_columns = ["session_id"] + columns
     col_sql = ", ".join(insert_columns)
-    param_sql = ", ".join(f":{col}" for col in insert_columns)
+    json_columns = {
+        question["name"]
+        for question in part["questions"]
+        if question["type"] == "checkbox"
+    }
+    param_sql = ", ".join(
+        f"CAST(:{col} AS JSON)" if col in json_columns else f":{col}"
+        for col in insert_columns
+    )
 
     db.execute(
         text(f"INSERT INTO {table} ({col_sql}) VALUES ({param_sql})"),
