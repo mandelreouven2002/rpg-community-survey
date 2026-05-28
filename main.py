@@ -9,7 +9,6 @@ from fastapi import Cookie, Depends, FastAPI, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 
 from database import Base, engine, get_db
@@ -170,39 +169,7 @@ def validate_section(data: dict[str, Any], questions: list[dict[str, Any]]) -> s
     return None
 
 def ensure_schema():
-    """
-    create_all() creates missing tables but does not add columns to an existing table.
-    This fixes old deployed DBs that are missing columns such as updated_at.
-    """
     Base.metadata.create_all(bind=engine)
-
-    inspector = inspect(engine)
-    if "survey_sessions" not in inspector.get_table_names():
-        return
-
-    existing = {col["name"] for col in inspector.get_columns("survey_sessions")}
-    required_columns = {
-        "ip_hash": "VARCHAR(64)",
-        "is_submitted": "BOOLEAN DEFAULT FALSE",
-        "current_section": "VARCHAR(20)",
-        "section1": "TEXT",
-        "section2": "TEXT",
-        "section3": "TEXT",
-        "section4": "TEXT",
-        "section5": "TEXT",
-        "section6": "TEXT",
-        "section7": "TEXT",
-        "section8": "TEXT",
-        "section9": "TEXT",
-        "active_sections": "TEXT",
-        "created_at": "TIMESTAMP",
-        "updated_at": "TIMESTAMP",
-    }
-
-    with engine.begin() as conn:
-        for column_name, column_type in required_columns.items():
-            if column_name not in existing:
-                conn.execute(text(f"ALTER TABLE survey_sessions ADD COLUMN {column_name} {column_type}"))
 
 @app.on_event("startup")
 def startup():
@@ -255,7 +222,7 @@ def export_csv(db: Session = Depends(get_db)):
     buffer = io.StringIO()
     writer = csv.writer(buffer)
 
-    headers = ["id", "is_submitted", "created_at", "updated_at", "current_section"]
+    headers = ["id", "is_submitted", "created_at", "current_section"]
     for sec in SECTION_ORDER:
         for q in SECTION_QUESTIONS[sec]:
             headers.append(q["name"])
@@ -266,7 +233,6 @@ def export_csv(db: Session = Depends(get_db)):
             sess.id,
             sess.is_submitted,
             sess.created_at.isoformat() if sess.created_at else "",
-            sess.updated_at.isoformat() if sess.updated_at else "",
             sess.current_section,
         ]
 
@@ -310,7 +276,6 @@ def submit_post(request: Request, session_id: str | None = Cookie(None), db: Ses
 
     sess.is_submitted = True
     sess.current_section = "complete"
-    sess.updated_at = datetime.utcnow()
     db.commit()
 
     response = RedirectResponse("/survey/complete", status_code=303)
@@ -385,7 +350,6 @@ async def section_post(section: str, request: Request, session_id: str | None = 
     setattr(sess, section, json.dumps(data, ensure_ascii=False))
     nxt = next_section(section)
     sess.current_section = nxt or "submit"
-    sess.updated_at = datetime.utcnow()
     db.commit()
 
     if nxt:
