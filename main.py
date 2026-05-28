@@ -846,6 +846,11 @@ def health():
     return {"ok": True, "service": "rpg-community-survey", "version": "2.1.0"}
 
 
+@app.get("/privacy", response_class=HTMLResponse)
+def privacy_get(request: Request):
+    return render(request, "privacy.html")
+
+
 @app.get("/survey", response_class=HTMLResponse)
 def consent_get(request: Request, db: Session = Depends(get_db)):
     force_form = request.query_params.get("start") == "new"
@@ -1059,6 +1064,7 @@ def submit_post(
             SET submitted = TRUE,
                 is_submitted = TRUE,
                 current_section = 'complete',
+                ip_hash = 'submitted-redacted',
                 updated_at = :updated_at
             WHERE id = :id
         """),
