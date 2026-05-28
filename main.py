@@ -262,7 +262,11 @@ PART_KEYS = [part["key"] for part in PARTS]
 
 def render(request: Request, template: str, **context):
     context["request"] = request
-    return templates.TemplateResponse(template, context)
+    return templates.TemplateResponse(
+        request=request,
+        name=template,
+        context=context,
+    )
 
 
 def hash_ip(request: Request) -> str:
