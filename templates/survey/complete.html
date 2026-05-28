@@ -6,7 +6,48 @@
     <h1>תודה רבה!</h1>
     <p>השאלון נשלח בהצלחה.</p>
     <p>הנתונים יעזרו לבנות תמונת מצב טובה יותר של קהילת משחקי התפקידים בישראל.</p>
-    <a href="/" class="btn btn-primary">חזרה לעמוד הראשי</a>
+
+    {% if request.query_params.get('raffle_saved') %}
+      <div class="summary-box">
+        הפרטים נשמרו. תודה!
+      </div>
+    {% else %}
+      <hr>
+
+      <h2>קבלת תוצאות המדד והשתתפות בהגרלה</h2>
+      <p>
+        המייל נשמר בנפרד מהתשובות המחקריות ולא ישמש לזיהוי אישי בניתוח הנתונים.
+      </p>
+
+      <form method="post" action="/survey/raffle" class="form">
+        <div class="form-group">
+          <label>האם תרצה/י לקבל את תוצאות המדד כשיפורסמו?</label>
+          <div class="radio-group">
+            <label><input type="radio" name="want_updates" value="yes"> כן</label>
+            <label><input type="radio" name="want_updates" value="no" checked> לא</label>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>האם תרצה/י להשתתף בהגרלה?</label>
+          <div class="radio-group">
+            <label><input type="radio" name="want_raffle" value="yes"> כן</label>
+            <label><input type="radio" name="want_raffle" value="no" checked> לא</label>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>כתובת מייל</label>
+          <input type="email" name="email" placeholder="name@example.com">
+        </div>
+
+        <button type="submit" class="btn btn-gold">שמור/י פרטי עדכון / הגרלה</button>
+      </form>
+    {% endif %}
+
+    <div class="btn-row">
+      <a href="/" class="btn btn-primary">חזרה לעמוד הראשי</a>
+    </div>
   </section>
 </main>
 {% endblock %}

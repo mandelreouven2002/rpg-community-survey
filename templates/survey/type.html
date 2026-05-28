@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="top-bar">
+  <a class="back-btn" href="/survey/part1">➔ חזור</a>
+  <div class="progress-container"><div class="progress-bar" style="width:12%"></div></div>
+  <div class="step-text">בחירת מסלול</div>
+</div>
+
+<main class="container">
+  <section class="card">
+    <h1>איזה מסלול שאלון תרצה/י למלא?</h1>
+
+    <p>
+      לפי התשובות שלך בחלק הראשון, חישבנו אילו חלקים רלוונטיים עבורך.
+    </p>
+
+    <form method="post" action="/survey/type" class="form">
+      <div class="form-group">
+        <div class="radio-group">
+          <label>
+            <input type="radio" name="survey_type" value="short" required checked>
+            <strong>גרסה קצרה</strong>
+            <span>בערך {{ short_count }} חלקים רלוונטיים. מתאימה לקהילה הרחבה.</span>
+          </label>
+
+          <label>
+            <input type="radio" name="survey_type" value="full" required>
+            <strong>גרסה מורחבת</strong>
+            <span>בערך {{ full_count }} חלקים רלוונטיים. כוללת יותר עומק.</span>
+          </label>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary">המשך/י</button>
+    </form>
+  </section>
+</main>
+{% endblock %}

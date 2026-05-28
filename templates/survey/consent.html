@@ -4,7 +4,7 @@
 <div class="top-bar">
   <a class="back-btn" href="/">➔ חזור</a>
   <div class="progress-container"><div class="progress-bar" style="width:5%"></div></div>
-  <div class="step-text">התחלה</div>
+  <div class="step-text">הסכמה וזיהוי</div>
 </div>
 
 <main class="container">
@@ -16,35 +16,22 @@
     {% endif %}
 
     <p>
-      כדי לאפשר חזרה לשאלון שהתחלת, נבקש מזהה אישי. המזהה לא נשמר כמו שהוא:
-      המערכת שומרת hash בלבד, ולא את תעודת הזהות הגולמית.
+      השאלון נועד למיפוי תחום משחקי התפקידים בישראל. התשובות ינותחו בצורה מצרפית בלבד.
+    </p>
+
+    <p>
+      תעודת הזהות נבדקת כדי למנוע שליחת שאלון כפול. המספר עצמו לא נשמר במסד הנתונים:
+      רק hash חד־כיווני יישמר, וגם זה רק לאחר שליחת השאלון.
     </p>
 
     <form method="post" action="/survey/consent" class="form">
       <div class="form-group">
-        <label>תעודת זהות / מזהה אישי לחזרה לשאלון *</label>
+        <label>תעודת זהות *</label>
         <input type="text" name="respondent_id" inputmode="numeric" autocomplete="off" required>
-        <p style="font-size:.9rem;color:#6f5c4d;margin-top:6px">
-          לא נשמר מספר תעודת הזהות עצמו, אלא רק hash חד־כיווני.
-        </p>
       </div>
 
       <div class="form-group">
-        <label>איזה שאלון למלא? *</label>
-        <div class="radio-group">
-          <label>
-            <input type="radio" name="survey_type" value="short" required>
-            שאלון קצר — שאלות ליבה בלבד
-          </label>
-          <label>
-            <input type="radio" name="survey_type" value="full" checked required>
-            שאלון מלא — כולל חלקים לפי תחומי פעילות
-          </label>
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label>האם לחזור לשאלון פתוח קודם, אם קיים?</label>
+        <label>האם לחזור לשאלון פתוח קודם, אם קיים מאותה כתובת IP?</label>
         <div class="checkbox-group">
           <label>
             <input type="checkbox" name="resume_existing" value="yes" checked>
@@ -61,7 +48,7 @@
         </div>
       </div>
 
-      <button type="submit" class="btn btn-primary">המשך/י</button>
+      <button type="submit" class="btn btn-primary">המשך/י לחלק 1</button>
     </form>
   </section>
 </main>

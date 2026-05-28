@@ -3,7 +3,7 @@ import hashlib
 import io
 import json
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from fastapi import Cookie, Depends, FastAPI, Request
@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from database import Base, engine, get_db
 
-app = FastAPI(title="RPG Community Survey", version="2.0.0")
+app = FastAPI(title="RPG Community Survey", version="2.1.0")
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
@@ -261,43 +261,81 @@ PART_KEYS = [part["key"] for part in PARTS]
 
 SHORT_PART_KEYS = ["part1", "part2", "part3", "part9", "part11", "part16"]
 
+def normalize_israeli_id(raw_identifier: str) -> str:
+    return "".join(ch for ch in raw_identifier.strip() if ch.isdigit())
+
+
+def is_valid_israeli_id(raw_identifier: str) -> bool:
+    """
+    Israeli ID validation:
+    pad to 9 digits, multiply alternating 1/2, sum digits, total must divide by 10.
+    """
+    value = normalize_israeli_id(raw_identifier)
+    if not value or len(value) > 9:
+        return False
+
+    value = value.zfill(9)
+    total = 0
+
+    for index, char in enumerate(value):
+        digit = int(char)
+        multiplier = 1 if index % 2 == 0 else 2
+        product = digit * multiplier
+        total += product if product < 10 else (product // 10 + product % 10)
+
+    return total % 10 == 0
+
+
 def hash_identifier(raw_identifier: str) -> str:
-    normalized = "".join(ch for ch in raw_identifier.strip() if ch.isdigit())
-    if not normalized:
-        normalized = raw_identifier.strip().lower()
+    normalized = normalize_israeli_id(raw_identifier)
     return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
 
 def build_active_part_keys(survey_type: str = "full", roles: list[str] | None = None) -> list[str]:
     roles = roles or []
 
-    if survey_type == "short":
-        return SHORT_PART_KEYS
-
-    active = list(PART_KEYS)
-
     def has_any(*needles: str) -> bool:
         return any(any(needle in role for needle in needles) for role in roles)
 
-    # Conditional sections for the full questionnaire.
-    if not has_any("מנחה"):
-        active.remove("part4")
-    if not has_any("לארפ"):
-        active.remove("part5")
-    if not has_any("הורה"):
-        active.remove("part8")
-    if not has_any("עבר"):
-        active.remove("part10")
-    if not has_any("יוצר"):
-        active.remove("part14")
-    if not has_any("עסק", "חנות"):
-        active.remove("part15")
+    # Core sections. These are the useful baseline for almost everyone.
+    active = ["part1", "part2", "part6", "part9", "part11", "part16"]
 
-    # Always keep the core community/research sections.
-    for required in ["part1", "part2", "part3", "part9", "part11", "part12", "part13", "part16"]:
-        if required not in active:
-            active.append(required)
+    # Short questionnaire: core + immediately relevant conditional paths.
+    if survey_type == "short":
+        if has_any("שולחני", "שיחקתי בעבר", "עבר"):
+            active.append("part3")
+        if has_any("מנחה"):
+            active.append("part4")
+        if has_any("לארפ"):
+            active.append("part5")
+        if has_any("הורה"):
+            active.append("part8")
+        if has_any("מתעניין"):
+            active.append("part9")
+        if has_any("עבר"):
+            active.append("part10")
+        return [key for key in PART_KEYS if key in set(active)]
 
-    return [key for key in PART_KEYS if key in active]
+    # Full questionnaire.
+    active = ["part1", "part2", "part6", "part7", "part9", "part11", "part12", "part13", "part16"]
+
+    if has_any("שולחני", "שיחקתי בעבר", "עבר"):
+        active.append("part3")
+    if has_any("מנחה", "חוגים", "סדנאות"):
+        active.append("part4")
+    if has_any("לארפ"):
+        active.append("part5")
+    if has_any("הורה"):
+        active.append("part8")
+    if has_any("עבר"):
+        active.append("part10")
+    if has_any("יוצר", "כותב", "מתרגם", "מוציא"):
+        active.append("part14")
+    if has_any("עסק", "חנות", "הוצאה", "חוגים", "סדנאות", "מארגן"):
+        active.append("part15")
+
+    return [key for key in PART_KEYS if key in set(active)]
+
 
 def session_active_part_keys(sess) -> list[str]:
     if not sess:
@@ -360,6 +398,88 @@ def get_session(db: Session, session_id: str | None):
         text("SELECT * FROM survey_sessions WHERE id = :id"),
         {"id": session_id},
     ).mappings().first()
+
+
+def is_under_13(birth_date_raw: str) -> bool:
+    if not birth_date_raw:
+        return False
+
+    try:
+        born = datetime.strptime(birth_date_raw, "%Y-%m-%d").date()
+    except ValueError:
+        return False
+
+    today = datetime.utcnow().date()
+    age = today.year - born.year - ((today.month, today.day) < (born.month, born.day))
+    return age < 13
+
+
+def delete_session_data(db: Session, session_id: str):
+    for part in PARTS:
+        db.execute(
+            text(f"DELETE FROM {part['table']} WHERE session_id = :session_id"),
+            {"session_id": session_id},
+        )
+    db.execute(text("DELETE FROM survey_sessions WHERE id = :id"), {"id": session_id})
+    db.commit()
+
+
+def delete_unsubmitted_by_ip(db: Session, ip_hash: str):
+    for part in PARTS:
+        db.execute(
+            text(f"""
+                DELETE FROM {part['table']}
+                WHERE session_id IN (
+                    SELECT id
+                    FROM survey_sessions
+                    WHERE ip_hash = :ip_hash
+                      AND COALESCE(submitted, FALSE) = FALSE
+                      AND COALESCE(is_submitted, FALSE) = FALSE
+                )
+            """),
+            {"ip_hash": ip_hash},
+        )
+
+    db.execute(
+        text("""
+            DELETE FROM survey_sessions
+            WHERE ip_hash = :ip_hash
+              AND COALESCE(submitted, FALSE) = FALSE
+              AND COALESCE(is_submitted, FALSE) = FALSE
+        """),
+        {"ip_hash": ip_hash},
+    )
+    db.commit()
+
+
+def cleanup_old_drafts():
+    cutoff = datetime.utcnow() - timedelta(days=30)
+
+    with engine.begin() as conn:
+        for part in PARTS:
+            conn.execute(
+                text(f"""
+                    DELETE FROM {part['table']}
+                    WHERE session_id IN (
+                        SELECT id
+                        FROM survey_sessions
+                        WHERE COALESCE(submitted, FALSE) = FALSE
+                          AND COALESCE(is_submitted, FALSE) = FALSE
+                          AND created_at < :cutoff
+                    )
+                """),
+                {"cutoff": cutoff},
+            )
+
+        conn.execute(
+            text("""
+                DELETE FROM survey_sessions
+                WHERE COALESCE(submitted, FALSE) = FALSE
+                  AND COALESCE(is_submitted, FALSE) = FALSE
+                  AND created_at < :cutoff
+            """),
+            {"cutoff": cutoff},
+        )
 
 
 def previous_part(key: str, active_keys: list[str] | None = None) -> str | None:
@@ -496,7 +616,27 @@ def save_part(db: Session, session_id: str, part: dict[str, Any], form):
         except Exception:
             roles = []
 
-        survey_type = (sess.get("survey_type") if sess else "full") or "full"
+        survey_type = (sess.get("survey_type") if sess else None)
+
+        # The spec says route choice happens after part1.
+        if not survey_type:
+            db.execute(
+                text("""
+                    UPDATE survey_sessions
+                    SET active_sections = :active_sections,
+                        current_section = 'type',
+                        updated_at = :updated_at
+                    WHERE id = :id
+                """),
+                {
+                    "id": session_id,
+                    "active_sections": json.dumps(["part1"], ensure_ascii=False),
+                    "updated_at": now(),
+                },
+            )
+            db.commit()
+            return
+
         active_keys = build_active_part_keys(survey_type, roles)
 
         db.execute(
@@ -552,6 +692,7 @@ def save_part(db: Session, session_id: str, part: dict[str, Any], form):
 @app.on_event("startup")
 def startup():
     Base.metadata.create_all(bind=engine)
+    cleanup_old_drafts()
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -561,7 +702,7 @@ def home(request: Request):
 
 @app.get("/health")
 def health():
-    return {"ok": True, "service": "rpg-community-survey", "version": "2.0.0"}
+    return {"ok": True, "service": "rpg-community-survey", "version": "2.1.0"}
 
 
 @app.get("/survey", response_class=HTMLResponse)
@@ -578,65 +719,133 @@ async def consent_post(request: Request, db: Session = Depends(get_db)):
 
     respondent_id = str(form.get("respondent_id", "")).strip()
     if not respondent_id:
-        return render(request, "survey/consent.html", error="נא להזין תעודת זהות / מזהה אישי כדי לאפשר חזרה לשאלון.")
+        return render(request, "survey/consent.html", error="נא להזין תעודת זהות.")
 
-    survey_type = str(form.get("survey_type", "full")).strip()
-    if survey_type not in {"short", "full"}:
-        survey_type = "full"
+    if not is_valid_israeli_id(respondent_id):
+        return render(request, "survey/consent.html", error="מספר תעודת הזהות אינו תקין. נא לבדוק ולהכניס שוב.")
 
-    id_hash = hash_identifier(respondent_id)
+    respondent_id_hash = hash_identifier(respondent_id)
 
-    db.execute(
-        text("INSERT INTO id_hashes (id_hash) VALUES (:id_hash) ON CONFLICT (id_hash) DO NOTHING"),
-        {"id_hash": id_hash},
-    )
+    already_submitted = db.execute(
+        text("SELECT id FROM id_hashes WHERE id_hash = :id_hash LIMIT 1"),
+        {"id_hash": respondent_id_hash},
+    ).mappings().first()
+
+    if already_submitted:
+        return render(request, "survey/consent.html", error="מספר תעודת הזהות כבר שימש לשליחת שאלון. לא ניתן לשלוח שאלון נוסף.")
+
+    ip_hash = hash_ip(request)
 
     if form.get("resume_existing") == "yes":
         existing = db.execute(
             text("""
                 SELECT *
                 FROM survey_sessions
-                WHERE ip_hash = :id_hash
+                WHERE ip_hash = :ip_hash
                   AND COALESCE(is_submitted, FALSE) = FALSE
                   AND COALESCE(submitted, FALSE) = FALSE
                 ORDER BY updated_at DESC NULLS LAST, created_at DESC NULLS LAST
                 LIMIT 1
             """),
-            {"id_hash": id_hash},
+            {"ip_hash": ip_hash},
         ).mappings().first()
 
         if existing:
             response = RedirectResponse(resume_destination(existing), status_code=303)
             response.set_cookie("session_id", existing["id"], httponly=True, samesite="lax")
+            response.set_cookie("respondent_id_hash", respondent_id_hash, httponly=True, samesite="lax")
             return response
 
     session_id = str(uuid.uuid4())
-    active_sections = build_active_part_keys(survey_type)
 
     db.execute(
         text("""
             INSERT INTO survey_sessions
             (id, ip_hash, survey_type, submitted, is_submitted, current_section, created_at, updated_at, active_sections)
             VALUES
-            (:id, :ip_hash, :survey_type, :submitted, :is_submitted, :current_section, :created_at, :updated_at, :active_sections)
+            (:id, :ip_hash, NULL, :submitted, :is_submitted, :current_section, :created_at, :updated_at, :active_sections)
         """),
         {
             "id": session_id,
-            "ip_hash": id_hash,
-            "survey_type": survey_type,
+            "ip_hash": ip_hash,
             "submitted": False,
             "is_submitted": False,
-            "current_section": active_sections[0],
+            "current_section": "part1",
             "created_at": now(),
             "updated_at": now(),
-            "active_sections": json.dumps(active_sections, ensure_ascii=False),
+            "active_sections": json.dumps(["part1"], ensure_ascii=False),
         },
     )
     db.commit()
 
-    response = RedirectResponse(f"/survey/{active_sections[0]}", status_code=303)
+    response = RedirectResponse("/survey/part1", status_code=303)
     response.set_cookie("session_id", session_id, httponly=True, samesite="lax")
+    response.set_cookie("respondent_id_hash", respondent_id_hash, httponly=True, samesite="lax")
     return response
+
+
+
+@app.get("/survey/type", response_class=HTMLResponse)
+def survey_type_get(request: Request, session_id: str | None = Cookie(None), db: Session = Depends(get_db)):
+    sess = get_session(db, session_id)
+    if not sess:
+        return RedirectResponse("/survey", status_code=303)
+
+    part1 = read_part_data(db, session_id, PART_BY_KEY["part1"])
+    roles = part1.get("roles", [])
+
+    short_parts = build_active_part_keys("short", roles)
+    full_parts = build_active_part_keys("full", roles)
+
+    return render(
+        request,
+        "survey/type.html",
+        short_count=len(short_parts),
+        full_count=len(full_parts),
+    )
+
+
+@app.post("/survey/type")
+async def survey_type_post(request: Request, session_id: str | None = Cookie(None), db: Session = Depends(get_db)):
+    sess = get_session(db, session_id)
+    if not sess:
+        return RedirectResponse("/survey", status_code=303)
+
+    form = await request.form()
+    survey_type = str(form.get("survey_type", "short")).strip()
+    if survey_type not in {"short", "full"}:
+        survey_type = "short"
+
+    part1 = read_part_data(db, session_id, PART_BY_KEY["part1"])
+    roles = part1.get("roles", [])
+    active_sections = build_active_part_keys(survey_type, roles)
+
+    # After choosing the route, continue to the first section after part1.
+    next_key = next_part("part1", active_sections) or "submit"
+
+    db.execute(
+        text("""
+            UPDATE survey_sessions
+            SET survey_type = :survey_type,
+                active_sections = :active_sections,
+                current_section = :current_section,
+                updated_at = :updated_at
+            WHERE id = :id
+        """),
+        {
+            "id": session_id,
+            "survey_type": survey_type,
+            "active_sections": json.dumps(active_sections, ensure_ascii=False),
+            "current_section": next_key,
+            "updated_at": now(),
+        },
+    )
+    db.commit()
+
+    if next_key == "submit":
+        return RedirectResponse("/survey/submit", status_code=303)
+
+    return RedirectResponse(f"/survey/{next_key}", status_code=303)
 
 
 @app.get("/survey/demographics")
@@ -647,6 +856,12 @@ def old_demographics_get():
 @app.post("/survey/demographics")
 def old_demographics_post():
     return RedirectResponse("/survey/part1", status_code=303)
+
+
+
+@app.get("/survey/too-young", response_class=HTMLResponse)
+def too_young_get(request: Request):
+    return render(request, "survey/too_young.html")
 
 
 @app.get("/survey/submit", response_class=HTMLResponse)
@@ -665,10 +880,31 @@ def submit_get(request: Request, session_id: str | None = Cookie(None), db: Sess
 
 
 @app.post("/survey/submit")
-def submit_post(session_id: str | None = Cookie(None), db: Session = Depends(get_db)):
+def submit_post(
+    request: Request,
+    session_id: str | None = Cookie(None),
+    respondent_id_hash: str | None = Cookie(None),
+    db: Session = Depends(get_db),
+):
     sess = get_session(db, session_id)
     if not sess:
         return RedirectResponse("/survey", status_code=303)
+
+    if not respondent_id_hash:
+        return render(request, "survey/consent.html", error="לא נמצא מזהה המשתתף. נא להתחיל מחדש כדי לשלוח את השאלון.")
+
+    already_submitted = db.execute(
+        text("SELECT id FROM id_hashes WHERE id_hash = :id_hash LIMIT 1"),
+        {"id_hash": respondent_id_hash},
+    ).mappings().first()
+
+    if already_submitted:
+        return render(request, "survey/consent.html", error="מספר תעודת הזהות כבר שימש לשליחת שאלון. לא ניתן לשלוח שאלון נוסף.")
+
+    db.execute(
+        text("INSERT INTO id_hashes (id_hash) VALUES (:id_hash)"),
+        {"id_hash": respondent_id_hash},
+    )
 
     db.execute(
         text("""
@@ -685,7 +921,40 @@ def submit_post(session_id: str | None = Cookie(None), db: Session = Depends(get
 
     response = RedirectResponse("/survey/complete", status_code=303)
     response.delete_cookie("session_id")
+    response.delete_cookie("respondent_id_hash")
     return response
+
+
+
+@app.post("/survey/raffle")
+async def raffle_post(request: Request, db: Session = Depends(get_db)):
+    form = await request.form()
+
+    want_updates = form.get("want_updates") == "yes"
+    want_raffle = form.get("want_raffle") == "yes"
+    email = str(form.get("email", "")).strip().lower()
+
+    if (want_updates or want_raffle) and email:
+        db.execute(
+            text("""
+                INSERT INTO raffle_emails (email, want_updates, want_raffle, created_at)
+                VALUES (:email, :want_updates, :want_raffle, :created_at)
+                ON CONFLICT (email)
+                DO UPDATE SET
+                    want_updates = EXCLUDED.want_updates,
+                    want_raffle = EXCLUDED.want_raffle,
+                    created_at = EXCLUDED.created_at
+            """),
+            {
+                "email": email,
+                "want_updates": want_updates,
+                "want_raffle": want_raffle,
+                "created_at": now(),
+            },
+        )
+        db.commit()
+
+    return RedirectResponse("/survey/complete?raffle_saved=1", status_code=303)
 
 
 @app.get("/survey/complete", response_class=HTMLResponse)
@@ -694,15 +963,23 @@ def complete_get(request: Request):
 
 
 @app.post("/survey/delete")
-def delete_my_data(session_id: str | None = Cookie(None), db: Session = Depends(get_db)):
+def delete_my_data(
+    request: Request,
+    session_id: str | None = Cookie(None),
+    db: Session = Depends(get_db),
+):
     if session_id:
-        for part in PARTS:
-            db.execute(text(f"DELETE FROM {part['table']} WHERE session_id = :session_id"), {"session_id": session_id})
-        db.execute(text("DELETE FROM survey_sessions WHERE id = :id"), {"id": session_id})
-        db.commit()
+        sess = get_session(db, session_id)
+        if sess:
+            delete_unsubmitted_by_ip(db, sess["ip_hash"])
+        else:
+            delete_unsubmitted_by_ip(db, hash_ip(request))
+    else:
+        delete_unsubmitted_by_ip(db, hash_ip(request))
 
     response = RedirectResponse("/", status_code=303)
     response.delete_cookie("session_id")
+    response.delete_cookie("respondent_id_hash")
     return response
 
 
@@ -806,6 +1083,15 @@ async def part_post(part_key: str, request: Request, session_id: str | None = Co
     part = PART_BY_KEY[part_key]
     form = await request.form()
 
+    if part_key == "part1":
+        birth_date_raw = str(form.get("birth_date", "")).strip()
+        if birth_date_raw and is_under_13(birth_date_raw):
+            delete_session_data(db, session_id)
+            response = RedirectResponse("/survey/too-young", status_code=303)
+            response.delete_cookie("session_id")
+            response.delete_cookie("respondent_id_hash")
+            return response
+
     error = validate_form(form, part)
     if error:
         active_keys = session_active_part_keys(sess)
@@ -832,6 +1118,9 @@ async def part_post(part_key: str, request: Request, session_id: str | None = Co
     save_part(db, session_id, part, form)
 
     sess = get_session(db, session_id)
+    if sess and sess.get("current_section") == "type":
+        return RedirectResponse("/survey/type", status_code=303)
+
     active_keys = session_active_part_keys(sess)
     nxt = next_part(part_key, active_keys)
     if nxt:
