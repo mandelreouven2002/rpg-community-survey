@@ -7,7 +7,6 @@ class SurveySession(Base):
     __tablename__ = "survey_sessions"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    ip_hash = Column(String(64), nullable=False)
     survey_type = Column(String(10), nullable=True)
     submitted = Column(Boolean, default=False)
     is_submitted = Column(Boolean, default=False)

@@ -403,10 +403,6 @@ def render(request: Request, template: str, **context):
     )
 
 
-def hash_ip(request: Request) -> str:
-    raw = request.headers.get("x-forwarded-for") or (request.client.host if request.client else "unknown")
-    first_ip = raw.split(",")[0].strip()
-    return hashlib.sha256(first_ip.encode("utf-8")).hexdigest()
 
 
 def now() -> datetime:
@@ -446,20 +442,6 @@ def get_session(db: Session, session_id: str | None):
     ).mappings().first()
 
 
-def get_open_draft_by_ip(db: Session, ip_hash: str):
-    # Legacy helper. Kept for old data / manual debugging, but no longer used as the main resume mechanism.
-    return db.execute(
-        text("""
-            SELECT *
-            FROM survey_sessions
-            WHERE ip_hash = :ip_hash
-              AND COALESCE(is_submitted, FALSE) = FALSE
-              AND COALESCE(submitted, FALSE) = FALSE
-            ORDER BY updated_at DESC NULLS LAST, created_at DESC NULLS LAST
-            LIMIT 1
-        """),
-        {"ip_hash": ip_hash},
-    ).mappings().first()
 
 
 def get_open_draft_by_cookie(db: Session, session_id: str | None):
@@ -550,32 +532,6 @@ def delete_session_data(db: Session, session_id: str):
     db.commit()
 
 
-def delete_unsubmitted_by_ip(db: Session, ip_hash: str):
-    for part in PARTS:
-        db.execute(
-            text(f"""
-                DELETE FROM {part['table']}
-                WHERE session_id IN (
-                    SELECT id
-                    FROM survey_sessions
-                    WHERE ip_hash = :ip_hash
-                      AND COALESCE(submitted, FALSE) = FALSE
-                      AND COALESCE(is_submitted, FALSE) = FALSE
-                )
-            """),
-            {"ip_hash": ip_hash},
-        )
-
-    db.execute(
-        text("""
-            DELETE FROM survey_sessions
-            WHERE ip_hash = :ip_hash
-              AND COALESCE(submitted, FALSE) = FALSE
-              AND COALESCE(is_submitted, FALSE) = FALSE
-        """),
-        {"ip_hash": ip_hash},
-    )
-    db.commit()
 
 
 def cleanup_old_drafts():
@@ -978,10 +934,6 @@ async def consent_post(request: Request, session_id: str | None = Cookie(None), 
     if already_submitted:
         return render(request, "survey/consent.html", **consent_context(request, db, session_id=session_id, error="מספר תעודת הזהות כבר שימש לשליחת שאלון. לא ניתן לשלוח שאלון נוסף.", force_form=True))
 
-    # Cookie-based resume is now the source of truth.
-    # The ip_hash column is kept only for DB compatibility.
-    # We intentionally do not store or calculate the user's IP for draft resume.
-    ip_hash = "cookie-only"
     resume_choice = form.get("resume_existing")
 
     if resume_choice == "yes":
@@ -1001,13 +953,12 @@ async def consent_post(request: Request, session_id: str | None = Cookie(None), 
     db.execute(
         text("""
             INSERT INTO survey_sessions
-            (id, ip_hash, survey_type, submitted, is_submitted, current_section, created_at, updated_at, active_sections)
+            (id, survey_type, submitted, is_submitted, current_section, created_at, updated_at, active_sections)
             VALUES
-            (:id, :ip_hash, NULL, :submitted, :is_submitted, :current_section, :created_at, :updated_at, :active_sections)
+            (:id, NULL, :submitted, :is_submitted, :current_section, :created_at, :updated_at, :active_sections)
         """),
         {
             "id": session_id,
-            "ip_hash": ip_hash,
             "submitted": False,
             "is_submitted": False,
             "current_section": "part1",
@@ -1152,7 +1103,6 @@ def submit_post(
             SET submitted = TRUE,
                 is_submitted = TRUE,
                 current_section = 'complete',
-                ip_hash = 'submitted-redacted',
                 submitted_at = :submitted_at,
                 updated_at = :submitted_at
             WHERE id = :id
