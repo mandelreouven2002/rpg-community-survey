@@ -463,12 +463,38 @@ def get_open_draft_by_ip(db: Session, ip_hash: str):
 
 
 def get_open_draft_by_cookie(db: Session, session_id: str | None):
+    """
+    Cookie-based draft lookup.
+
+    A draft is resumable only if:
+    - the cookie has a session_id
+    - the session exists in the database
+    - it was not submitted
+    - it is not older than 30 days
+
+    If the draft is older than 30 days, delete it immediately.
+    """
     sess = get_session(db, session_id)
     if not sess:
         return None
 
     if sess.get("submitted") or sess.get("is_submitted"):
         return None
+
+    created_at = sess.get("created_at")
+    if created_at:
+        try:
+            if isinstance(created_at, str):
+                created_at_value = datetime.fromisoformat(created_at.replace("Z", "+00:00")).replace(tzinfo=None)
+            else:
+                created_at_value = created_at
+
+            if created_at_value < datetime.utcnow() - timedelta(days=30):
+                delete_session_data(db, sess["id"])
+                return None
+        except Exception:
+            # If the timestamp is malformed, do not resume this session.
+            return None
 
     return sess
 
@@ -896,10 +922,22 @@ def consent_get(
     db: Session = Depends(get_db),
 ):
     force_form = request.query_params.get("start") == "new"
+    stale_cookie = request.query_params.get("stale") == "1"
+
+    # If the browser has a session cookie but there is no valid open draft in the DB,
+    # clear the stale cookies and reload the survey start page.
+    if session_id and not force_form:
+        existing = get_open_draft_by_cookie(db, session_id)
+        if not existing:
+            response = RedirectResponse("/survey?stale=1", status_code=303)
+            clear_survey_cookies(response)
+            return response
+
     return render(
         request,
         "survey/consent.html",
         **consent_context(request, db, session_id=session_id, force_form=force_form),
+        stale_cookie=stale_cookie,
     )
 
 
