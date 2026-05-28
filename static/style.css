@@ -1467,3 +1467,109 @@ html[data-theme="contrast"] .legal-page a.btn-soft:visited {
   color: #000000 !important;
   border-color: #000000 !important;
 }
+
+/* Mobile hamburger navigation */
+
+.site-nav-toggle {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  :root {
+    --nav-height: 64px;
+  }
+
+  .site-nav {
+    min-height: var(--nav-height);
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
+  }
+
+  .site-nav-brand {
+    justify-content: flex-start;
+  }
+
+  .site-nav-brand img {
+    width: 34px;
+    height: 34px;
+  }
+
+  .site-nav-brand span {
+    font-size: 1rem;
+  }
+
+  .site-nav-toggle {
+    display: inline-flex;
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+    padding: 0;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 5px;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--brand-dark);
+  }
+
+  .site-nav-toggle span {
+    display: block;
+    width: 20px;
+    height: 2px;
+    border-radius: 999px;
+    background: currentColor;
+    transition: transform 160ms ease, opacity 160ms ease;
+  }
+
+  .site-nav.is-open .site-nav-toggle span:nth-child(1) {
+    transform: translateY(7px) rotate(45deg);
+  }
+
+  .site-nav.is-open .site-nav-toggle span:nth-child(2) {
+    opacity: 0;
+  }
+
+  .site-nav.is-open .site-nav-toggle span:nth-child(3) {
+    transform: translateY(-7px) rotate(-45deg);
+  }
+
+  .site-nav-links {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 12px;
+    left: 12px;
+    display: none;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    box-shadow: var(--shadow-md);
+  }
+
+  .site-nav.is-open .site-nav-links {
+    display: grid;
+  }
+
+  .site-nav-links a,
+  .site-nav-links a:last-child {
+    grid-column: auto;
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+    background: var(--surface-soft);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+  }
+
+  .top-bar {
+    top: var(--nav-height);
+  }
+}
