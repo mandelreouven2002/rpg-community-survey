@@ -3,16 +3,24 @@
 <div class="top-bar">
   <a class="back-btn" href="/survey/part16">חזרה</a>
   <div class="progress-container"><div class="progress-bar" style="width:100%"></div></div>
-  <div class="step-text">שליחה</div>
+  <div class="step-text">בדיקה ושליחה</div>
 </div>
 
 <main class="container">
   <section class="card">
-    <h1>סיום ושליחת השאלון</h1>
-    <p>אפשר לחזור אחורה ולתקן תשובות לפני השליחה.</p>
+    <h1>כמעט סיימנו</h1>
+
+    <p>
+      תודה על הזמן שהקדשת למילוי השאלון.
+      לפני השליחה הסופית אפשר לחזור לחלקים קודמים ולתקן תשובות במידת הצורך.
+    </p>
+
+    <div class="notice-box">
+      לאחר השליחה, הטופס יסומן כטופס שנשלח, ותעודת הזהות תירשם במערכת כ־hash חד־כיווני כדי למנוע שליחה כפולה.
+    </div>
 
     <details class="summary-box">
-      <summary>הצג/י סיכום תשובות</summary>
+      <summary>הצגת סיכום התשובות שנשמרו</summary>
       {% for title, answers in sections.items() %}
         <h3>{{ title }}</h3>
         <ul>
@@ -24,7 +32,7 @@
     </details>
 
     <form method="post" action="/survey/submit">
-      <button type="submit" class="btn btn-gold">שלח/י את השאלון</button>
+      <button type="submit" class="btn btn-gold">שליחת השאלון</button>
     </form>
   </section>
 </main>

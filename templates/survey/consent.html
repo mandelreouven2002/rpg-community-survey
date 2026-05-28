@@ -9,46 +9,77 @@
 
 <main class="container">
   <section class="card">
-    <h1>התחלת השאלון</h1>
+    <h1>לפני שמתחילים</h1>
 
     {% if error %}
       <div class="error-msg">{{ error }}</div>
     {% endif %}
 
     <p>
-      השאלון נועד למיפוי תחום משחקי התפקידים בישראל. התשובות ינותחו בצורה מצרפית בלבד.
+      תודה שבחרת להשתתף בדוח הקהילה השנתי למשחקי תפקידים בישראל.
+      מטרת השאלון היא למפות את התחום: מי משחקים, באילו מסגרות, מה חסר,
+      מה מקשה על אנשים להצטרף, ומה יכול לעזור לקהילה לצמוח.
+    </p>
+
+    <div class="notice-box">
+      <strong>איך נשתמש בתשובות?</strong>
+      התשובות ינותחו בצורה מצרפית בלבד. המטרה היא להציג מגמות, צרכים ותובנות כלליות על התחום —
+      לא לפרסם תשובות אישיות של משתתפים.
+    </div>
+
+    <h2>פרטיות וזיהוי</h2>
+
+    <p>
+      כדי למנוע שליחת שאלון כפול, נבקש להזין מספר תעודת זהות.
+      המספר עצמו לא נשמר במסד הנתונים. המערכת בודקת שהמספר תקין, ובסיום השאלון שומרת רק hash חד־כיווני שלו.
     </p>
 
     <p>
-      תעודת הזהות נבדקת כדי למנוע שליחת שאלון כפול. המספר עצמו לא נשמר במסד הנתונים:
-      רק hash חד־כיווני יישמר, וגם זה רק לאחר שליחת השאלון.
+      בנוסף, המערכת משתמשת ב־hash של כתובת ה־IP כדי לנסות לאפשר חזרה לשאלון פתוח אם יצאת באמצע.
+      אין התחייבות טכנית שהשחזור תמיד יעבוד, למשל אם החלפת רשת, דפדפן או מכשיר.
+    </p>
+
+    <h2>הסכמה להשתתפות</h2>
+
+    <p>
+      ההשתתפות בשאלון היא מרצון. ניתן לא להמשיך, וניתן למחוק את הטופס במהלך המילוי באמצעות כפתור המחיקה.
+      חלק מהשאלות הן חובה כדי לאפשר ניתוח משמעותי של הנתונים; שאלות רגישות או מזהות יותר נשמרו מצומצמות ככל האפשר.
     </p>
 
     <form method="post" action="/survey/consent" class="form">
       <div class="form-group">
-        <label>תעודת זהות *</label>
+        <label>מספר תעודת זהות *</label>
         <input type="text" name="respondent_id" inputmode="numeric" autocomplete="off" required>
+        <p class="field-help">
+          יש להזין מספר תקין. המספר הגולמי אינו נשמר; רק hash חד־כיווני יישמר לאחר שליחת השאלון.
+        </p>
       </div>
 
       <div class="form-group">
-        <label>האם לחזור לשאלון פתוח קודם, אם קיים מאותה כתובת IP?</label>
+        <label>המשך שאלון קיים</label>
         <div class="checkbox-group">
           <label>
             <input type="checkbox" name="resume_existing" value="yes" checked>
-            כן, אם כבר התחלתי — המשך מהמקום שבו עצרתי
+            אם כבר התחלתי שאלון פתוח מאותה כתובת IP, נסו להחזיר אותי למקום שבו עצרתי
           </label>
         </div>
       </div>
 
       <div class="form-group">
-        <label>הסכמה להשתתפות *</label>
+        <label>האם את/ה מסכים/ה להשתתף בשאלון? *</label>
         <div class="radio-group">
-          <label><input type="radio" name="consent" value="yes" required> כן, אני מאשר/ת להשתתף</label>
-          <label><input type="radio" name="consent" value="no"> לא</label>
+          <label>
+            <input type="radio" name="consent" value="yes" required>
+            כן, קראתי והבנתי את ההסבר ואני מסכים/ה להשתתף
+          </label>
+          <label>
+            <input type="radio" name="consent" value="no">
+            לא, אינני מעוניין/ת להשתתף
+          </label>
         </div>
       </div>
 
-      <button type="submit" class="btn btn-primary">המשך/י לחלק 1</button>
+      <button type="submit" class="btn btn-primary">המשך לחלק הראשון</button>
     </form>
   </section>
 </main>

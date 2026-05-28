@@ -4,24 +4,33 @@
 <main class="container">
   <section class="card complete-card">
     <h1>תודה רבה!</h1>
-    <p>השאלון נשלח בהצלחה.</p>
-    <p>הנתונים יעזרו לבנות תמונת מצב טובה יותר של קהילת משחקי התפקידים בישראל.</p>
+
+    <p>
+      השאלון נשלח בהצלחה. התשובות שלך יצטרפו לנתונים המצרפיים של דוח הקהילה השנתי למשחקי תפקידים בישראל.
+    </p>
+
+    <p>
+      כשהדוח יתפרסם, הוא יוכל לעזור לקהילה להבין טוב יותר איפה יש פעילות, איפה חסרות מסגרות,
+      מה מקשה על שחקנים ומנחים, ואילו פרויקטים יכולים לקדם את התחום.
+    </p>
 
     {% if request.query_params.get('raffle_saved') %}
       <div class="summary-box">
-        הפרטים נשמרו. תודה!
+        פרטי המייל נשמרו בנפרד מתשובות השאלון. תודה!
       </div>
     {% else %}
       <hr>
 
-      <h2>קבלת תוצאות המדד והשתתפות בהגרלה</h2>
+      <h2>עדכונים והגרלה</h2>
+
       <p>
-        המייל נשמר בנפרד מהתשובות המחקריות ולא ישמש לזיהוי אישי בניתוח הנתונים.
+        ניתן להשאיר כתובת מייל כדי לקבל עדכון כשהמדד יתפרסם, להשתתף בהגרלה, או שניהם.
+        כתובת המייל נשמרת בנפרד מתשובות השאלון ולא תשמש לזיהוי אישי בניתוח הנתונים.
       </p>
 
       <form method="post" action="/survey/raffle" class="form">
         <div class="form-group">
-          <label>האם תרצה/י לקבל את תוצאות המדד כשיפורסמו?</label>
+          <label>האם תרצה/י לקבל עדכון כשהדוח יתפרסם?</label>
           <div class="radio-group">
             <label><input type="radio" name="want_updates" value="yes"> כן</label>
             <label><input type="radio" name="want_updates" value="no" checked> לא</label>
@@ -39,9 +48,12 @@
         <div class="form-group">
           <label>כתובת מייל</label>
           <input type="email" name="email" placeholder="name@example.com">
+          <p class="field-help">
+            חובה למלא מייל רק אם בחרת לקבל עדכון או להשתתף בהגרלה.
+          </p>
         </div>
 
-        <button type="submit" class="btn btn-gold">שמור/י פרטי עדכון / הגרלה</button>
+        <button type="submit" class="btn btn-gold">שמירת פרטי עדכון / הגרלה</button>
       </form>
     {% endif %}
 

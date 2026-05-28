@@ -8,30 +8,41 @@
 
 <main class="container">
   <section class="card">
-    <h1>איזה מסלול שאלון תרצה/י למלא?</h1>
+    <h1>בחירת מסלול מילוי</h1>
 
     <p>
-      לפי התשובות שלך בחלק הראשון, חישבנו אילו חלקים רלוונטיים עבורך.
+      לפי התשובות שנתת בחלק הראשון, המערכת זיהתה אילו חלקים בשאלון רלוונטיים עבורך.
+      עכשיו אפשר לבחור בין מסלול קצר לבין מסלול מורחב.
     </p>
 
     <form method="post" action="/survey/type" class="form">
       <div class="form-group">
+        <label>איזה מסלול מתאים לך?</label>
+
         <div class="radio-group">
           <label>
             <input type="radio" name="survey_type" value="short" required checked>
-            <strong>גרסה קצרה</strong>
-            <span>בערך {{ short_count }} חלקים רלוונטיים. מתאימה לקהילה הרחבה.</span>
+            <strong>מסלול קצר</strong>
+            <span>
+              כולל את שאלות הליבה ואת החלקים המרכזיים שרלוונטיים אליך.
+              מתאים למי שרוצה לתרום לדוח בלי להיכנס לעומק רב.
+              במסלול זה יופיעו בערך {{ short_count }} חלקים.
+            </span>
           </label>
 
           <label>
             <input type="radio" name="survey_type" value="full" required>
-            <strong>גרסה מורחבת</strong>
-            <span>בערך {{ full_count }} חלקים רלוונטיים. כוללת יותר עומק.</span>
+            <strong>מסלול מורחב</strong>
+            <span>
+              כולל יותר שאלות עומק על הרגלי משחק, קהילה, כנסים, חנויות, יצירה, עבודה וצרכים עתידיים.
+              מתאים למי שרוצה לעזור לבנות תמונה מלאה יותר.
+              במסלול זה יופיעו בערך {{ full_count }} חלקים.
+            </span>
           </label>
         </div>
       </div>
 
-      <button type="submit" class="btn btn-primary">המשך/י</button>
+      <button type="submit" class="btn btn-primary">בחירת מסלול והמשך</button>
     </form>
   </section>
 </main>
