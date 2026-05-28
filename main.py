@@ -1584,8 +1584,25 @@ def admin_dashboard(request: Request, db: Session = Depends(get_db)):
     if not admin_is_authenticated(request):
         return RedirectResponse("/admin/login", status_code=303)
 
-    dashboard = build_admin_dashboard(db)
+    dashboard = build_admin_dashboard(db, request)
     return render(request, "admin/dashboard.html", dashboard=dashboard)
+
+
+
+
+@app.get("/admin/report.md")
+def admin_report_markdown(request: Request, db: Session = Depends(get_db)):
+    if not admin_is_authenticated(request):
+        return RedirectResponse("/admin/login", status_code=303)
+
+    dashboard = build_admin_dashboard(db, request)
+    report = build_markdown_report(dashboard)
+
+    return StreamingResponse(
+        iter([report]),
+        media_type="text/markdown; charset=utf-8",
+        headers={"Content-Disposition": "attachment; filename=rpg-community-survey-report.md"},
+    )
 
 
 @app.get("/admin/export.csv")
@@ -1754,3 +1771,790 @@ async def part_post(part_key: str, request: Request, session_id: str | None = Co
         return RedirectResponse("/survey/type", status_code=303)
 
     return RedirectResponse(resume_destination(sess), status_code=303)
+
+
+
+def percent(yes: int, total: int) -> float:
+    return round((yes / total) * 100, 1) if total else 0
+
+
+def admin_filter_options(db: Session) -> dict[str, Any]:
+    regions = admin_rows(
+        db,
+        """
+        SELECT DISTINCT region AS value
+        FROM part1_basic
+        WHERE region IS NOT NULL AND region <> ''
+        ORDER BY region
+        """
+    )
+
+    roles = admin_rows(
+        db,
+        """
+        SELECT DISTINCT x.label AS value
+        FROM part1_basic p
+        CROSS JOIN LATERAL jsonb_array_elements_text(
+            COALESCE(p.roles::jsonb, '[]'::jsonb)
+        ) AS x(label)
+        ORDER BY x.label
+        """
+    )
+
+    return {
+        "regions": [row["value"] for row in regions],
+        "roles": [row["value"] for row in roles],
+        "survey_types": ["short", "full"],
+    }
+
+
+def admin_where_from_request(request: Request) -> tuple[str, dict[str, Any], dict[str, str]]:
+    region = str(request.query_params.get("region", "")).strip()
+    role = str(request.query_params.get("role", "")).strip()
+    survey_type = str(request.query_params.get("survey_type", "")).strip()
+
+    clauses = []
+    params = {}
+    filters = {
+        "region": region,
+        "role": role,
+        "survey_type": survey_type,
+    }
+
+    if region:
+        clauses.append("""
+            EXISTS (
+                SELECT 1 FROM part1_basic b
+                WHERE b.session_id = s.id
+                  AND b.region = :filter_region
+            )
+        """)
+        params["filter_region"] = region
+
+    if role:
+        clauses.append("""
+            EXISTS (
+                SELECT 1 FROM part1_basic b
+                WHERE b.session_id = s.id
+                  AND COALESCE(b.roles::jsonb, '[]'::jsonb) ? :filter_role
+            )
+        """)
+        params["filter_role"] = role
+
+    if survey_type:
+        clauses.append("s.survey_type = :filter_survey_type")
+        params["filter_survey_type"] = survey_type
+
+    where_sql = ""
+    if clauses:
+        where_sql = " AND " + " AND ".join(f"({clause})" for clause in clauses)
+
+    return where_sql, params, filters
+
+
+def submitted_condition(alias: str = "s") -> str:
+    return f"(COALESCE({alias}.submitted, FALSE) = TRUE OR COALESCE({alias}.is_submitted, FALSE) = TRUE)"
+
+
+def add_share_safe(rows: list[dict[str, Any]], count_key: str = "count") -> list[dict[str, Any]]:
+    total = sum(int(row.get(count_key) or 0) for row in rows)
+    for row in rows:
+        count = int(row.get(count_key) or 0)
+        row["share"] = percent(count, total)
+    return rows
+
+
+def filtered_choice_counts(db: Session, table: str, column: str, where_sql: str, params: dict[str, Any], limit: int = 10) -> list[dict[str, Any]]:
+    rows = admin_rows(
+        db,
+        f"""
+        SELECT COALESCE(NULLIF(p.{column}::text, ''), 'לא ידוע') AS label,
+               COUNT(*)::int AS count
+        FROM survey_sessions s
+        JOIN {table} p ON p.session_id = s.id
+        WHERE {submitted_condition("s")}
+          {where_sql}
+        GROUP BY label
+        ORDER BY count DESC, label ASC
+        LIMIT :limit
+        """,
+        {**params, "limit": limit},
+    )
+    return add_share_safe(rows)
+
+
+def filtered_json_values(db: Session, table: str, column: str, where_sql: str, params: dict[str, Any], limit: int = 10) -> list[dict[str, Any]]:
+    rows = admin_rows(
+        db,
+        f"""
+        SELECT x.label AS label, COUNT(*)::int AS count
+        FROM survey_sessions s
+        JOIN {table} p ON p.session_id = s.id
+        CROSS JOIN LATERAL jsonb_array_elements_text(
+            COALESCE(p.{column}::jsonb, '[]'::jsonb)
+        ) AS x(label)
+        WHERE {submitted_condition("s")}
+          {where_sql}
+        GROUP BY x.label
+        ORDER BY count DESC, label ASC
+        LIMIT :limit
+        """,
+        {**params, "limit": limit},
+    )
+    return add_share_safe(rows)
+
+
+def filtered_scalar(db: Session, query: str, params: dict[str, Any], default=0):
+    try:
+        value = db.execute(text(query), params).scalar()
+        return default if value is None else value
+    except Exception:
+        db.rollback()
+        return default
+
+
+def comparison_row(db: Session, title: str, segment_a: str, segment_b: str, query: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+    row = admin_one(db, query, params or {})
+    a_yes = int(row.get("a_yes") or 0)
+    a_total = int(row.get("a_total") or 0)
+    b_yes = int(row.get("b_yes") or 0)
+    b_total = int(row.get("b_total") or 0)
+
+    return {
+        "title": title,
+        "segment_a": segment_a,
+        "segment_b": segment_b,
+        "a_rate": percent(a_yes, a_total),
+        "b_rate": percent(b_yes, b_total),
+        "a_total": a_total,
+        "b_total": b_total,
+        "gap": round(percent(a_yes, a_total) - percent(b_yes, b_total), 1),
+    }
+
+
+def open_text_keywords(db: Session, where_sql: str, params: dict[str, Any], limit: int = 18) -> list[dict[str, Any]]:
+    import re
+    from collections import Counter
+
+    rows = admin_rows(
+        db,
+        f"""
+        SELECT p.missing_thing_1, p.missing_thing_2, p.missing_thing_3, p.one_sentence_value
+        FROM survey_sessions s
+        JOIN part16_vision p ON p.session_id = s.id
+        WHERE {submitted_condition("s")}
+          {where_sql}
+        """,
+        params,
+    )
+
+    stopwords = {
+        "של", "על", "עם", "או", "זה", "אני", "את", "אתה", "אתם", "אנחנו", "הוא", "היא",
+        "יש", "אין", "לא", "כן", "יותר", "פחות", "מאוד", "גם", "כדי", "כל", "מה", "מי",
+        "איך", "למה", "הכי", "עוד", "צריך", "צריכים", "בתחום", "משחקי", "תפקידים",
+        "משחק", "שחקנים", "שחקן", "שחקנית", "ישראל", "בישראל"
+    }
+
+    counter = Counter()
+
+    for row in rows:
+        text_blob = " ".join(str(row.get(key) or "") for key in row.keys())
+        words = re.findall(r"[א-תA-Za-z]{3,}", text_blob.lower())
+        for word in words:
+            if word not in stopwords:
+                counter[word] += 1
+
+    return [
+        {"label": word, "count": count, "share": 0}
+        for word, count in counter.most_common(limit)
+    ]
+
+
+def build_executive_summary(dashboard: dict[str, Any]) -> list[str]:
+    insights = []
+
+    submitted = dashboard["raw"]["submitted"]
+    completion_rate = dashboard["raw"]["completion_rate"]
+
+    if submitted == 0:
+        return [
+            "עדיין אין מספיק טפסים שנשלחו כדי להסיק מסקנות.",
+            "מומלץ לבדוק קודם שהשאלון נגיש, קצר מספיק, ושכל המסלולים עובדים עד השליחה.",
+        ]
+
+    insights.append(f"נשלחו עד עכשיו {submitted} טפסים, עם שיעור השלמה של {completion_rate}% מכלל הטפסים שנפתחו.")
+
+    if dashboard["regions"]:
+        top_region = dashboard["regions"][0]
+        insights.append(f"האזור הבולט ביותר במדגם כרגע הוא {top_region['label']} עם {top_region['share']}% מהמשיבים המזוהים לפי אזור.")
+
+    if dashboard["barriers"]:
+        top_barrier = dashboard["barriers"][0]
+        insights.append(f"החסם המרכזי שמופיע כרגע הוא: {top_barrier['label']}.")
+
+    if dashboard["projects"]:
+        top_project = dashboard["projects"][0]
+        insights.append(f"הפרויקט המבוקש ביותר כרגע הוא: {top_project['label']}.")
+
+    if dashboard["nps"]["nps_score"] is not None:
+        insights.append(f"ציון ה־NPS הנוכחי הוא {dashboard['nps']['nps_score']}. זה מדד טוב למידת ההתלהבות והנכונות להמליץ על התחום.")
+
+    if dashboard["sample_quality"]["warnings"]:
+        insights.append("יש כרגע מגבלות מדגם שכדאי לטפל בהן לפני פרסום מסקנות חזקות.")
+
+    return insights[:7]
+
+
+def build_sample_quality(db: Session, dashboard: dict[str, Any], where_sql: str, params: dict[str, Any]) -> dict[str, Any]:
+    submitted = dashboard["raw"]["submitted"]
+    region_count = len(dashboard["regions"])
+    top_region_share = dashboard["regions"][0]["share"] if dashboard["regions"] else 0
+
+    warnings = []
+
+    if submitted < 50:
+        warnings.append("פחות מ־50 טפסים נשלחו. זה טוב לבדיקת כיוון, לא למסקנות ציבוריות חזקות.")
+    elif submitted < 200:
+        warnings.append("המדגם עדיין בינוני. כדאי להמשיך הפצה לפני ניתוחים עמוקים לפי אזור או תפקיד.")
+
+    if region_count <= 3 and submitted >= 20:
+        warnings.append("יש ייצוג גאוגרפי מצומצם יחסית. כדאי להפיץ את הסקר בעוד אזורים.")
+    
+    if top_region_share >= 45:
+        warnings.append("אזור אחד דומיננטי מאוד במדגם. מסקנות כלל־ארציות עלולות להיות מוטות.")
+
+    if dashboard["raw"]["completion_rate"] < 45 and dashboard["raw"]["total_sessions"] >= 20:
+        warnings.append("שיעור ההשלמה נמוך יחסית. כדאי לבדוק באיזה שלב אנשים נוטשים.")
+
+    score = 100
+    score -= 30 if submitted < 50 else 0
+    score -= 15 if submitted < 200 else 0
+    score -= 15 if top_region_share >= 45 else 0
+    score -= 15 if dashboard["raw"]["completion_rate"] < 45 else 0
+    score = max(0, min(100, score))
+
+    return {
+        "score": score,
+        "submitted": submitted,
+        "region_count": region_count,
+        "top_region_share": top_region_share,
+        "warnings": warnings,
+    }
+
+
+def build_opportunities(dashboard: dict[str, Any]) -> list[dict[str, Any]]:
+    opportunities = []
+
+    def add(title: str, signal: str, action: str, priority: str):
+        opportunities.append({
+            "title": title,
+            "signal": signal,
+            "action": action,
+            "priority": priority,
+        })
+
+    top_barrier = dashboard["barriers"][0] if dashboard["barriers"] else None
+    top_project = dashboard["projects"][0] if dashboard["projects"] else None
+
+    if top_barrier:
+        add(
+            "טיפול בחסם הכניסה המרכזי",
+            f"החסם המוביל כרגע הוא: {top_barrier['label']}.",
+            "ליצור תוכן, אירוע או כלי ייעודי שמטפל ישירות בחסם הזה.",
+            "גבוהה",
+        )
+
+    if top_project:
+        add(
+            "בניית פרויקט קהילתי ראשון לפי ביקוש",
+            f"הפרויקט המבוקש ביותר הוא: {top_project['label']}.",
+            "להפוך את זה לפרויקט פעולה ראשון: עמוד נחיתה, פיילוט או שיתוף פעולה עם גורם קיים.",
+            "גבוהה",
+        )
+
+    if dashboard["raw"]["drafts"] > dashboard["raw"]["submitted"]:
+        add(
+            "שיפור השלמת השאלון",
+            "יש יותר טיוטות מטפסים שנשלחו.",
+            "לקצר טקסטים, לבדוק שאלות חובה ולזהות את שלב הנטישה המרכזי.",
+            "בינונית",
+        )
+
+    if dashboard["nps"]["nps_score"] is not None and dashboard["nps"]["nps_score"] >= 30:
+        add(
+            "להפעיל את הממליצים",
+            f"ציון NPS חיובי יחסית: {dashboard['nps']['nps_score']}.",
+            "לבקש ממשיבים לשתף את הסקר בקבוצות משחק, כנסים וקהילות מקומיות.",
+            "בינונית",
+        )
+
+    if dashboard["sample_quality"]["top_region_share"] >= 45:
+        add(
+            "איזון גאוגרפי של המדגם",
+            "אזור אחד דומיננטי מדי במדגם.",
+            "להפיץ את הסקר במכוון בקהילות צפון, דרום, ירושלים, חיפה ופריפריה.",
+            "גבוהה",
+        )
+
+    return opportunities[:8]
+
+
+def build_advanced_comparisons(db: Session, where_sql: str, params: dict[str, Any]) -> list[dict[str, Any]]:
+    comparisons = []
+
+    comparisons.append(comparison_row(
+        db,
+        "השתתפות בכנסים: שחקנים חודשיים מול פחות מחודשיים",
+        "משחקים לפחות פעם בחודש",
+        "משחקים פחות מפעם בחודש",
+        f"""
+        SELECT
+          COUNT(*) FILTER (
+            WHERE t.frequency IN ('כמה פעמים בשבוע', 'פעם בשבוע', 'פעמיים בחודש', 'פעמיים־שלוש בחודש', 'פעם בחודש')
+              AND COALESCE(c.attended_con::text, '') LIKE 'כן%'
+          )::int AS a_yes,
+          COUNT(*) FILTER (
+            WHERE t.frequency IN ('כמה פעמים בשבוע', 'פעם בשבוע', 'פעמיים בחודש', 'פעמיים־שלוש בחודש', 'פעם בחודש')
+          )::int AS a_total,
+          COUNT(*) FILTER (
+            WHERE t.frequency NOT IN ('כמה פעמים בשבוע', 'פעם בשבוע', 'פעמיים בחודש', 'פעמיים־שלוש בחודש', 'פעם בחודש')
+              AND COALESCE(c.attended_con::text, '') LIKE 'כן%'
+          )::int AS b_yes,
+          COUNT(*) FILTER (
+            WHERE t.frequency NOT IN ('כמה פעמים בשבוע', 'פעם בשבוע', 'פעמיים בחודש', 'פעמיים־שלוש בחודש', 'פעם בחודש')
+          )::int AS b_total
+        FROM survey_sessions s
+        JOIN part3_tabletop t ON t.session_id = s.id
+        LEFT JOIN part6_conventions c ON c.session_id = s.id
+        WHERE {submitted_condition("s")}
+          {where_sql}
+        """,
+        params,
+    ))
+
+    comparisons.append(comparison_row(
+        db,
+        "שייכות גבוהה: משתתפי כנסים מול מי שלא השתתפו",
+        "השתתפו בכנס",
+        "לא השתתפו בכנס",
+        f"""
+        SELECT
+          COUNT(*) FILTER (
+            WHERE COALESCE(c.attended_con::text, '') LIKE 'כן%'
+              AND NULLIF(comm.belonging_level::text, '')::numeric >= 4
+          )::int AS a_yes,
+          COUNT(*) FILTER (
+            WHERE COALESCE(c.attended_con::text, '') LIKE 'כן%'
+          )::int AS a_total,
+          COUNT(*) FILTER (
+            WHERE COALESCE(c.attended_con::text, '') NOT LIKE 'כן%'
+              AND NULLIF(comm.belonging_level::text, '')::numeric >= 4
+          )::int AS b_yes,
+          COUNT(*) FILTER (
+            WHERE COALESCE(c.attended_con::text, '') NOT LIKE 'כן%'
+          )::int AS b_total
+        FROM survey_sessions s
+        JOIN part6_conventions c ON c.session_id = s.id
+        JOIN part11_community comm ON comm.session_id = s.id
+        WHERE {submitted_condition("s")}
+          {where_sql}
+        """,
+        params,
+    ))
+
+    comparisons.append(comparison_row(
+        db,
+        "משחק אונליין: מחוץ לגוש דן מול גוש דן/תל אביב",
+        "מחוץ לגוש דן ותל אביב",
+        "גוש דן ותל אביב",
+        f"""
+        SELECT
+          COUNT(*) FILTER (
+            WHERE COALESCE(b.region, '') NOT IN ('גוש דן', 'תל אביב-יפו', 'תל אביב־יפו')
+              AND COALESCE(t.online_vs_physical::text, '') LIKE '%אונליין%'
+          )::int AS a_yes,
+          COUNT(*) FILTER (
+            WHERE COALESCE(b.region, '') NOT IN ('גוש דן', 'תל אביב-יפו', 'תל אביב־יפו')
+          )::int AS a_total,
+          COUNT(*) FILTER (
+            WHERE COALESCE(b.region, '') IN ('גוש דן', 'תל אביב-יפו', 'תל אביב־יפו')
+              AND COALESCE(t.online_vs_physical::text, '') LIKE '%אונליין%'
+          )::int AS b_yes,
+          COUNT(*) FILTER (
+            WHERE COALESCE(b.region, '') IN ('גוש דן', 'תל אביב-יפו', 'תל אביב־יפו')
+          )::int AS b_total
+        FROM survey_sessions s
+        JOIN part1_basic b ON b.session_id = s.id
+        JOIN part3_tabletop t ON t.session_id = s.id
+        WHERE {submitted_condition("s")}
+          {where_sql}
+        """,
+        params,
+    ))
+
+    return comparisons
+
+
+def build_enhanced_admin_dashboard(db: Session, request: Request) -> dict[str, Any]:
+    where_sql, params, filters = admin_where_from_request(request)
+
+    total_sessions = int(admin_scalar(
+        db,
+        f"SELECT COUNT(*) FROM survey_sessions s WHERE 1=1 {where_sql}",
+        params,
+        default=0,
+    ))
+
+    submitted = int(admin_scalar(
+        db,
+        f"""
+        SELECT COUNT(*)
+        FROM survey_sessions s
+        WHERE {submitted_condition("s")}
+          {where_sql}
+        """,
+        params,
+        default=0,
+    ))
+
+    drafts = max(total_sessions - submitted, 0)
+    completion_rate = percent(submitted, total_sessions)
+
+    raffle_emails = int(admin_scalar(db, "SELECT COUNT(*) FROM raffle_emails", default=0))
+
+    active_last_7_days = int(admin_scalar(
+        db,
+        f"""
+        SELECT COUNT(*)
+        FROM survey_sessions s
+        WHERE s.created_at >= NOW() - INTERVAL '7 days'
+          {where_sql}
+        """,
+        params,
+        default=0,
+    ))
+
+    nps = admin_one(
+        db,
+        f"""
+        WITH scores AS (
+            SELECT NULLIF(p.nps_score::text, '')::numeric AS score
+            FROM survey_sessions s
+            JOIN part16_vision p ON p.session_id = s.id
+            WHERE {submitted_condition("s")}
+              {where_sql}
+              AND p.nps_score IS NOT NULL
+        )
+        SELECT
+            COUNT(*)::int AS total,
+            ROUND(AVG(score), 2) AS avg_score,
+            SUM(CASE WHEN score >= 9 THEN 1 ELSE 0 END)::int AS promoters,
+            SUM(CASE WHEN score BETWEEN 7 AND 8 THEN 1 ELSE 0 END)::int AS passives,
+            SUM(CASE WHEN score <= 6 THEN 1 ELSE 0 END)::int AS detractors
+        FROM scores
+        """,
+        params,
+    )
+
+    nps_total = int(nps.get("total") or 0)
+    promoters = int(nps.get("promoters") or 0)
+    detractors = int(nps.get("detractors") or 0)
+    nps_score = round(((promoters - detractors) / nps_total) * 100, 1) if nps_total else None
+    nps_promoter_rate = percent(promoters, nps_total)
+
+    survey_types = add_share_safe(admin_rows(
+        db,
+        f"""
+        SELECT COALESCE(NULLIF(s.survey_type, ''), 'לא נבחר') AS label,
+               COUNT(*)::int AS count
+        FROM survey_sessions s
+        WHERE 1=1 {where_sql}
+        GROUP BY label
+        ORDER BY count DESC
+        """,
+        params,
+    ))
+
+    progress = add_share_safe(admin_rows(
+        db,
+        f"""
+        SELECT COALESCE(NULLIF(s.current_section, ''), 'לא ידוע') AS label,
+               COUNT(*)::int AS count
+        FROM survey_sessions s
+        WHERE COALESCE(s.submitted, FALSE) = FALSE
+          AND COALESCE(s.is_submitted, FALSE) = FALSE
+          {where_sql}
+        GROUP BY label
+        ORDER BY count DESC
+        """,
+        params,
+    ))
+
+    monthly = admin_rows(
+        db,
+        f"""
+        SELECT TO_CHAR(DATE_TRUNC('day', s.created_at), 'YYYY-MM-DD') AS label,
+               COUNT(*)::int AS count
+        FROM survey_sessions s
+        WHERE s.created_at >= NOW() - INTERVAL '30 days'
+          {where_sql}
+        GROUP BY DATE_TRUNC('day', s.created_at)
+        ORDER BY label ASC
+        """,
+        params,
+    )
+
+    regions = filtered_choice_counts(db, "part1_basic", "region", where_sql, params, 12)
+    roles = filtered_json_values(db, "part1_basic", "roles", where_sql, params, 12)
+    systems = filtered_json_values(db, "part3_tabletop", "systems_played", where_sql, params, 10)
+    genres = filtered_json_values(db, "part3_tabletop", "favorite_genres", where_sql, params, 10)
+    barriers = filtered_json_values(db, "part9_barriers", "barriers_to_start", where_sql, params, 10)
+    projects = filtered_json_values(db, "part16_vision", "helpful_projects", where_sql, params, 10)
+    conventions = filtered_json_values(db, "part6_conventions", "con_names", where_sql, params, 10)
+    play_frequency = filtered_choice_counts(db, "part3_tabletop", "frequency", where_sql, params, 8)
+    belonging = filtered_choice_counts(db, "part11_community", "belonging_level", where_sql, params, 5)
+
+    convention_rate = rate(
+        db,
+        f"""
+        SELECT
+            COUNT(*) FILTER (WHERE COALESCE(p.attended_con::text, '') LIKE 'כן%')::int AS yes,
+            COUNT(*)::int AS total
+        FROM survey_sessions s
+        JOIN part6_conventions p ON p.session_id = s.id
+        WHERE {submitted_condition("s")}
+          {where_sql}
+        """
+    )
+
+    monthly_player_rate = rate(
+        db,
+        f"""
+        SELECT
+            COUNT(*) FILTER (
+                WHERE p.frequency IN ('כמה פעמים בשבוע', 'פעם בשבוע', 'פעמיים בחודש', 'פעמיים־שלוש בחודש', 'פעם בחודש')
+            )::int AS yes,
+            COUNT(*)::int AS total
+        FROM survey_sessions s
+        JOIN part3_tabletop p ON p.session_id = s.id
+        WHERE {submitted_condition("s")}
+          {where_sql}
+        """
+    )
+
+    belonging_high_rate = rate(
+        db,
+        f"""
+        SELECT
+            COUNT(*) FILTER (WHERE NULLIF(p.belonging_level::text, '')::numeric >= 4)::int AS yes,
+            COUNT(*)::int AS total
+        FROM survey_sessions s
+        JOIN part11_community p ON p.session_id = s.id
+        WHERE {submitted_condition("s")}
+          {where_sql}
+          AND p.belonging_level IS NOT NULL
+        """
+    )
+
+    creator_rate = rate(
+        db,
+        f"""
+        SELECT
+            COUNT(*) FILTER (
+                WHERE COALESCE(p.created_content::jsonb, '[]'::jsonb) <> '[]'::jsonb
+                  AND NOT COALESCE(p.created_content::jsonb, '[]'::jsonb) ? 'לא יצרתי'
+            )::int AS yes,
+            COUNT(*)::int AS total
+        FROM survey_sessions s
+        JOIN part14_creation p ON p.session_id = s.id
+        WHERE {submitted_condition("s")}
+          {where_sql}
+        """
+    )
+
+    gm_rate = rate(
+        db,
+        f"""
+        SELECT
+            COUNT(*) FILTER (WHERE COALESCE(p.gm_currently::text, '') LIKE 'כן%')::int AS yes,
+            COUNT(*)::int AS total
+        FROM survey_sessions s
+        JOIN part4_gms p ON p.session_id = s.id
+        WHERE {submitted_condition("s")}
+          {where_sql}
+        """
+    )
+
+    indices = [
+        {
+            "title": "מדד פעילות",
+            "score": round((monthly_player_rate + convention_rate + gm_rate + creator_rate) / 4, 1),
+            "note": "משחק חודשי, כנסים, הנחיה ויצירת תוכן.",
+        },
+        {
+            "title": "מדד נגישות",
+            "score": round(max(0, 100 - (barriers[0]["share"] if barriers else 0)), 1),
+            "note": "אומדן ראשוני לפי עוצמת החסם המרכזי.",
+        },
+        {
+            "title": "מדד שייכות",
+            "score": round((belonging_high_rate + convention_rate + nps_promoter_rate) / 3, 1),
+            "note": "שייכות גבוהה, השתתפות בכנסים ונכונות להמליץ.",
+        },
+        {
+            "title": "מדד צמיחה",
+            "score": round((nps_promoter_rate + monthly_player_rate + creator_rate) / 3, 1),
+            "note": "אינדיקציה להתלהבות, פעילות ויצירתיות.",
+        },
+    ]
+
+    predictions = [
+        probability_card(
+            db,
+            "הסתברות השתתפות בכנס בקרב שחקנים חודשיים ומעלה",
+            f"""
+            SELECT
+                COUNT(*) FILTER (WHERE COALESCE(c.attended_con::text, '') LIKE 'כן%')::int AS yes,
+                COUNT(*)::int AS total
+            FROM survey_sessions s
+            JOIN part3_tabletop t ON t.session_id = s.id
+            LEFT JOIN part6_conventions c ON c.session_id = s.id
+            WHERE {submitted_condition("s")}
+              {where_sql}
+              AND t.frequency IN ('כמה פעמים בשבוע', 'פעם בשבוע', 'פעמיים בחודש', 'פעמיים־שלוש בחודש', 'פעם בחודש')
+            """,
+            "עוזר להבין אם פעילות משחק קבועה מנבאת הגעה לכנסים.",
+        ),
+        probability_card(
+            db,
+            "הסתברות נכונות לשלם על פעילות ילדים בקרב הורים שמזהים ערך גבוה",
+            f"""
+            SELECT
+                COUNT(*) FILTER (
+                    WHERE p.willing_to_pay IN ('כן', 'אולי', 'כבר משלם/ת')
+                )::int AS yes,
+                COUNT(*)::int AS total
+            FROM survey_sessions s
+            JOIN part8_parents p ON p.session_id = s.id
+            WHERE {submitted_condition("s")}
+              {where_sql}
+              AND NULLIF(p.positive_activity::text, '')::numeric >= 4
+            """,
+            "אינדיקציה לביקוש לחוגים, סדנאות ופעילות לילדים.",
+        ),
+        probability_card(
+            db,
+            "הסתברות משחק אונליין מחוץ לגוש דן ותל אביב",
+            f"""
+            SELECT
+                COUNT(*) FILTER (
+                    WHERE COALESCE(t.online_vs_physical::text, '') LIKE '%אונליין%'
+                )::int AS yes,
+                COUNT(*)::int AS total
+            FROM survey_sessions s
+            JOIN part1_basic b ON b.session_id = s.id
+            JOIN part3_tabletop t ON t.session_id = s.id
+            WHERE {submitted_condition("s")}
+              {where_sql}
+              AND COALESCE(b.region, '') NOT IN ('גוש דן', 'תל אביב-יפו', 'תל אביב־יפו')
+            """,
+            "בודק אם אונליין משמש פתרון לפער גאוגרפי.",
+        ),
+    ]
+
+    stats_cards = [
+        {"label": "סה״כ טפסים", "value": total_sessions},
+        {"label": "טפסים שנשלחו", "value": submitted},
+        {"label": "טיוטות פתוחות", "value": drafts},
+        {"label": "אחוז השלמה", "value": f"{completion_rate}%"},
+        {"label": "נרשמים לעדכונים/הגרלה", "value": raffle_emails},
+        {"label": "טפסים ב־7 ימים אחרונים", "value": active_last_7_days},
+    ]
+
+    dashboard = {
+        "raw": {
+            "total_sessions": total_sessions,
+            "submitted": submitted,
+            "drafts": drafts,
+            "completion_rate": completion_rate,
+        },
+        "stats_cards": stats_cards,
+        "nps": {
+            "avg_score": nps.get("avg_score"),
+            "nps_score": nps_score,
+            "total": nps_total,
+            "promoters": promoters,
+            "passives": int(nps.get("passives") or 0),
+            "detractors": detractors,
+        },
+        "survey_types": survey_types,
+        "progress": progress,
+        "monthly": monthly,
+        "regions": regions,
+        "roles": roles,
+        "systems": systems,
+        "genres": genres,
+        "barriers": barriers,
+        "projects": projects,
+        "conventions": conventions,
+        "belonging": belonging,
+        "play_frequency": play_frequency,
+        "indices": indices,
+        "predictions": predictions,
+        "comparisons": build_advanced_comparisons(db, where_sql, params),
+        "open_keywords": open_text_keywords(db, where_sql, params),
+        "filters": filters,
+        "filter_options": admin_filter_options(db),
+    }
+
+    dashboard["sample_quality"] = build_sample_quality(db, dashboard, where_sql, params)
+    dashboard["opportunities"] = build_opportunities(dashboard)
+    dashboard["executive_summary"] = build_executive_summary(dashboard)
+    dashboard["sample_warning"] = bool(dashboard["sample_quality"]["warnings"])
+
+    return dashboard
+
+
+def build_admin_dashboard(db: Session, request: Request | None = None) -> dict[str, Any]:
+    if request is None:
+        class EmptyRequest:
+            query_params = {}
+        request = EmptyRequest()
+    return build_enhanced_admin_dashboard(db, request)
+
+
+def build_markdown_report(dashboard: dict[str, Any]) -> str:
+    lines = []
+    lines.append("# דוח מצב — סקר קהילת משחקי התפקידים בישראל")
+    lines.append("")
+    lines.append("## תקציר מנהלים")
+    for insight in dashboard.get("executive_summary", []):
+        lines.append(f"- {insight}")
+
+    lines.append("")
+    lines.append("## מדדים מרכזיים")
+    for card in dashboard.get("stats_cards", []):
+        lines.append(f"- **{card['label']}**: {card['value']}")
+
+    lines.append("")
+    lines.append("## מדדים מחקריים")
+    for index in dashboard.get("indices", []):
+        lines.append(f"- **{index['title']}**: {index['score']}/100 — {index['note']}")
+
+    lines.append("")
+    lines.append("## הזדמנויות פעולה")
+    for item in dashboard.get("opportunities", []):
+        lines.append(f"- **{item['title']}** ({item['priority']}): {item['action']}")
+
+    lines.append("")
+    lines.append("## חסמים מרכזיים")
+    for row in dashboard.get("barriers", [])[:8]:
+        lines.append(f"- {row['label']}: {row['count']} ({row.get('share', 0)}%)")
+
+    lines.append("")
+    lines.append("## פרויקטים מבוקשים")
+    for row in dashboard.get("projects", [])[:8]:
+        lines.append(f"- {row['label']}: {row['count']} ({row.get('share', 0)}%)")
+
+    return "\n".join(lines) + "\n"
+

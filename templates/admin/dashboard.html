@@ -5,10 +5,11 @@
   <section class="admin-header">
     <div>
       <h1>דשבורד דוח הקהילה</h1>
-      <p>ניתוח חי של תשובות הסקר, מדדים ותחזיות אמפיריות ראשוניות.</p>
+      <p>תמונת מצב, תובנות, פילוחים, איכות מדגם, תחזיות והמלצות פעולה.</p>
     </div>
 
     <div class="admin-actions">
+      <a href="/admin/report.md?region={{ dashboard.filters.region }}&role={{ dashboard.filters.role }}&survey_type={{ dashboard.filters.survey_type }}" class="btn btn-primary">הורדת דוח Markdown</a>
       <a href="/admin/export.csv" class="btn btn-gold">ייצוא CSV</a>
       <form method="post" action="/admin/logout">
         <button type="submit" class="btn btn-soft">יציאה</button>
@@ -16,10 +17,49 @@
     </div>
   </section>
 
+  <section class="card admin-card">
+    <h2>פילטרים</h2>
+    <form method="get" action="/admin" class="admin-filters">
+      <label>
+        <span>אזור</span>
+        <select name="region">
+          <option value="">כל האזורים</option>
+          {% for option in dashboard.filter_options.regions %}
+            <option value="{{ option }}" {% if dashboard.filters.region == option %}selected{% endif %}>{{ option }}</option>
+          {% endfor %}
+        </select>
+      </label>
+
+      <label>
+        <span>קשר לתחום</span>
+        <select name="role">
+          <option value="">כל התפקידים</option>
+          {% for option in dashboard.filter_options.roles %}
+            <option value="{{ option }}" {% if dashboard.filters.role == option %}selected{% endif %}>{{ option }}</option>
+          {% endfor %}
+        </select>
+      </label>
+
+      <label>
+        <span>סוג שאלון</span>
+        <select name="survey_type">
+          <option value="">כל המסלולים</option>
+          <option value="short" {% if dashboard.filters.survey_type == "short" %}selected{% endif %}>קצר</option>
+          <option value="full" {% if dashboard.filters.survey_type == "full" %}selected{% endif %}>מורחב</option>
+        </select>
+      </label>
+
+      <button type="submit" class="btn btn-primary">סינון</button>
+      <a href="/admin" class="btn btn-soft">ניקוי</a>
+    </form>
+  </section>
+
   {% if dashboard.sample_warning %}
     <section class="notice-box">
       <strong>הערת מדגם:</strong>
-      יש עדיין פחות מ־50 טפסים שנשלחו. הנתונים שימושיים לבדיקת כיוון, אבל לא כדאי לפרסם מסקנות חזקות מדי בשלב הזה.
+      {% for warning in dashboard.sample_quality.warnings %}
+        <div>{{ warning }}</div>
+      {% endfor %}
     </section>
   {% endif %}
 
@@ -32,7 +72,35 @@
     {% endfor %}
   </section>
 
+  <section class="card admin-card">
+    <h2>תקציר מנהלים</h2>
+    <ul class="insight-list">
+      {% for insight in dashboard.executive_summary %}
+        <li>{{ insight }}</li>
+      {% endfor %}
+    </ul>
+  </section>
+
   <section class="admin-grid">
+    <article class="card admin-card">
+      <h2>איכות המדגם</h2>
+      <div class="big-number">{{ dashboard.sample_quality.score }}/100</div>
+      <p>
+        טפסים שנשלחו: <strong>{{ dashboard.sample_quality.submitted }}</strong> |
+        אזורים מיוצגים: <strong>{{ dashboard.sample_quality.region_count }}</strong> |
+        נתח האזור המוביל: <strong>{{ dashboard.sample_quality.top_region_share }}%</strong>
+      </p>
+      {% if dashboard.sample_quality.warnings %}
+        <ul class="compact-list">
+          {% for warning in dashboard.sample_quality.warnings %}
+            <li>{{ warning }}</li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p>אין כרגע אזהרות איכות מדגם משמעותיות.</p>
+      {% endif %}
+    </article>
+
     <article class="card admin-card">
       <h2>NPS ונכונות המלצה</h2>
       <div class="big-number">
@@ -55,20 +123,42 @@
         <span>מבקרים: {{ dashboard.nps.detractors }}</span>
       </div>
     </article>
+  </section>
 
-    <article class="card admin-card">
-      <h2>מדדים מחקריים</h2>
+  <section class="card admin-card">
+    <h2>מדדים מחקריים</h2>
+    <div class="index-grid">
       {% for item in dashboard.indices %}
-        <div class="metric-row">
-          <div>
-            <strong>{{ item.title }}</strong>
-            <small>{{ item.note }}</small>
+        <article class="index-card">
+          <div class="metric-row">
+            <div>
+              <strong>{{ item.title }}</strong>
+              <small>{{ item.note }}</small>
+            </div>
+            <span>{{ item.score }}/100</span>
           </div>
-          <span>{{ item.score }}/100</span>
-        </div>
-        <div class="admin-bar"><div style="width: {{ item.score }}%"></div></div>
+          <div class="admin-bar"><div style="width: {{ item.score }}%"></div></div>
+        </article>
       {% endfor %}
-    </article>
+    </div>
+  </section>
+
+  <section class="card admin-card">
+    <h2>מפת הזדמנויות והמלצות פעולה</h2>
+    {% if dashboard.opportunities %}
+      <div class="opportunity-grid">
+        {% for item in dashboard.opportunities %}
+          <article class="opportunity-card">
+            <span class="priority">עדיפות {{ item.priority }}</span>
+            <h3>{{ item.title }}</h3>
+            <p><strong>סימן מהנתונים:</strong> {{ item.signal }}</p>
+            <p><strong>מה לעשות:</strong> {{ item.action }}</p>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p>אין עדיין מספיק נתונים להמלצות פעולה.</p>
+    {% endif %}
   </section>
 
   <section class="admin-grid">
@@ -79,7 +169,8 @@
     </article>
 
     <article class="card admin-card">
-      <h2>טיוטות לפי שלב נוכחי</h2>
+      <h2>נשירה / טיוטות לפי שלב</h2>
+      <p>כך אפשר לזהות איפה אנשים עוזבים את השאלון לפני השליחה.</p>
       {% set rows = dashboard.progress %}
       {% include "admin/partials/bar_list_rows.html" %}
     </article>
@@ -142,6 +233,31 @@
   </section>
 
   <section class="card admin-card">
+    <h2>השוואות בין קבוצות</h2>
+    <p>השוואות אלו עוזרות להבין קשרים בין פעילות, שייכות, כנסים וגאוגרפיה.</p>
+
+    <div class="comparison-grid">
+      {% for item in dashboard.comparisons %}
+        <article class="comparison-card">
+          <h3>{{ item.title }}</h3>
+          <div class="compare-row">
+            <span>{{ item.segment_a }}</span>
+            <strong>{{ item.a_rate }}%</strong>
+          </div>
+          <div class="compare-row">
+            <span>{{ item.segment_b }}</span>
+            <strong>{{ item.b_rate }}%</strong>
+          </div>
+          <small>
+            פער: {{ item.gap }} נקודות אחוז |
+            מדגם: {{ item.a_total }} מול {{ item.b_total }}
+          </small>
+        </article>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="card admin-card">
     <h2>תחזיות אמפיריות</h2>
     <p>
       אלו אינן תחזיות “קסם” או מודל AI מלא. אלה הסתברויות שנמדדות מתוך התשובות שנאספו עד עכשיו.
@@ -161,20 +277,28 @@
     </div>
   </section>
 
-  <section class="card admin-card">
-    <h2>טפסים ב־30 הימים האחרונים</h2>
-    {% if dashboard.monthly %}
-      <div class="daily-list">
-        {% for row in dashboard.monthly %}
-          <div class="daily-row">
-            <span>{{ row.label }}</span>
-            <strong>{{ row.count }}</strong>
-          </div>
-        {% endfor %}
-      </div>
-    {% else %}
-      <p>אין עדיין נתונים להצגה.</p>
-    {% endif %}
+  <section class="admin-grid">
+    <article class="card admin-card">
+      <h2>מילים חוזרות בשאלות פתוחות</h2>
+      {% set rows = dashboard.open_keywords %}
+      {% include "admin/partials/bar_list_rows.html" %}
+    </article>
+
+    <article class="card admin-card">
+      <h2>טפסים ב־30 הימים האחרונים</h2>
+      {% if dashboard.monthly %}
+        <div class="daily-list">
+          {% for row in dashboard.monthly %}
+            <div class="daily-row">
+              <span>{{ row.label }}</span>
+              <strong>{{ row.count }}</strong>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p>אין עדיין נתונים להצגה.</p>
+      {% endif %}
+    </article>
   </section>
 </main>
 {% endblock %}
