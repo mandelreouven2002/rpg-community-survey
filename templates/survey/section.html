@@ -14,6 +14,20 @@
   <section class="card">
     <h1>{{ title }}</h1>
 
+    {% if active_parts %}
+      <nav class="section-nav" aria-label="ניווט בין חלקי השאלון">
+        {% for item in active_parts %}
+          {% if item.is_accessible %}
+            <a href="/survey/{{ item.key }}" class="{% if item.is_current %}current{% endif %}" title="{{ item.title }}">
+              {{ loop.index }}
+            </a>
+          {% else %}
+            <span class="locked" title="{{ item.title }}">{{ loop.index }}</span>
+          {% endif %}
+        {% endfor %}
+      </nav>
+    {% endif %}
+
     {% if error %}
       <div class="error-msg">{{ error }}</div>
     {% endif %}
