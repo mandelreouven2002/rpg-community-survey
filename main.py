@@ -9,12 +9,13 @@ from fastapi import Cookie, Depends, FastAPI, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 
 from database import Base, engine, get_db
 from models import SurveySession
 
-app = FastAPI(title="RPG Community Survey", version="1.0.0")
+app = FastAPI(title="RPG Community Survey", version="1.0.1")
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
@@ -168,9 +169,44 @@ def validate_section(data: dict[str, Any], questions: list[dict[str, Any]]) -> s
             return f"נא לענות על השאלה: {q['label']}"
     return None
 
+def ensure_schema():
+    """
+    create_all() creates missing tables but does not add columns to an existing table.
+    This fixes old deployed DBs that are missing columns such as updated_at.
+    """
+    Base.metadata.create_all(bind=engine)
+
+    inspector = inspect(engine)
+    if "survey_sessions" not in inspector.get_table_names():
+        return
+
+    existing = {col["name"] for col in inspector.get_columns("survey_sessions")}
+    required_columns = {
+        "ip_hash": "VARCHAR(64)",
+        "is_submitted": "BOOLEAN DEFAULT FALSE",
+        "current_section": "VARCHAR(20)",
+        "section1": "TEXT",
+        "section2": "TEXT",
+        "section3": "TEXT",
+        "section4": "TEXT",
+        "section5": "TEXT",
+        "section6": "TEXT",
+        "section7": "TEXT",
+        "section8": "TEXT",
+        "section9": "TEXT",
+        "active_sections": "TEXT",
+        "created_at": "TIMESTAMP",
+        "updated_at": "TIMESTAMP",
+    }
+
+    with engine.begin() as conn:
+        for column_name, column_type in required_columns.items():
+            if column_name not in existing:
+                conn.execute(text(f"ALTER TABLE survey_sessions ADD COLUMN {column_name} {column_type}"))
+
 @app.on_event("startup")
 def startup():
-    Base.metadata.create_all(bind=engine)
+    ensure_schema()
 
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
@@ -204,7 +240,55 @@ async def consent_post(request: Request, db: Session = Depends(get_db)):
     response.set_cookie("session_id", sess.id, httponly=True, samesite="lax")
     return response
 
-@app.get("/survey/{section}", response_class=HTMLResponse)
+@app.get("/survey/demographics")
+def old_demographics_get():
+    return RedirectResponse("/survey/section1", status_code=303)
+
+@app.post("/survey/demographics")
+def old_demographics_post():
+    return RedirectResponse("/survey/section1", status_code=303)
+
+@app.get("/admin/export.csv")
+def export_csv(db: Session = Depends(get_db)):
+    rows = db.query(SurveySession).order_by(SurveySession.created_at.desc()).all()
+
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+
+    headers = ["id", "is_submitted", "created_at", "updated_at", "current_section"]
+    for sec in SECTION_ORDER:
+        for q in SECTION_QUESTIONS[sec]:
+            headers.append(q["name"])
+    writer.writerow(headers)
+
+    for sess in rows:
+        row = [
+            sess.id,
+            sess.is_submitted,
+            sess.created_at.isoformat() if sess.created_at else "",
+            sess.updated_at.isoformat() if sess.updated_at else "",
+            sess.current_section,
+        ]
+
+        merged = {}
+        for sec in SECTION_ORDER:
+            merged.update(parse_json(getattr(sess, sec), {}))
+
+        for sec in SECTION_ORDER:
+            for q in SECTION_QUESTIONS[sec]:
+                val = merged.get(q["name"], "")
+                if isinstance(val, list):
+                    val = " | ".join(val)
+                row.append(val)
+        writer.writerow(row)
+
+    buffer.seek(0)
+    filename = f"rpg-community-survey-{datetime.utcnow().date().isoformat()}.csv"
+    return StreamingResponse(
+        iter([buffer.getvalue()]),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )\n\n@app.get("/survey/{section}", response_class=HTMLResponse)
 def section_get(section: str, request: Request, session_id: str | None = Cookie(None), db: Session = Depends(get_db)):
     if section not in SECTION_ORDER:
         return RedirectResponse("/survey", status_code=303)
@@ -305,46 +389,4 @@ def delete_my_data(session_id: str | None = Cookie(None), db: Session = Depends(
 
     response = RedirectResponse("/", status_code=303)
     response.delete_cookie("session_id")
-    return response
-
-@app.get("/admin/export.csv")
-def export_csv(db: Session = Depends(get_db)):
-    rows = db.query(SurveySession).order_by(SurveySession.created_at.desc()).all()
-
-    buffer = io.StringIO()
-    writer = csv.writer(buffer)
-
-    headers = ["id", "is_submitted", "created_at", "updated_at", "current_section"]
-    for sec in SECTION_ORDER:
-        for q in SECTION_QUESTIONS[sec]:
-            headers.append(q["name"])
-    writer.writerow(headers)
-
-    for sess in rows:
-        row = [
-            sess.id,
-            sess.is_submitted,
-            sess.created_at.isoformat() if sess.created_at else "",
-            sess.updated_at.isoformat() if sess.updated_at else "",
-            sess.current_section,
-        ]
-
-        merged = {}
-        for sec in SECTION_ORDER:
-            merged.update(parse_json(getattr(sess, sec), {}))
-
-        for sec in SECTION_ORDER:
-            for q in SECTION_QUESTIONS[sec]:
-                val = merged.get(q["name"], "")
-                if isinstance(val, list):
-                    val = " | ".join(val)
-                row.append(val)
-        writer.writerow(row)
-
-    buffer.seek(0)
-    filename = f"rpg-community-survey-{datetime.utcnow().date().isoformat()}.csv"
-    return StreamingResponse(
-        iter([buffer.getvalue()]),
-        media_type="text/csv; charset=utf-8",
-        headers={"Content-Disposition": f"attachment; filename={filename}"},
-    )
+    return response\n
