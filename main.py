@@ -787,45 +787,25 @@ def save_part(db: Session, session_id: str, part: dict[str, Any], form):
             },
         )
 
-    nxt = next_part(part["key"], active_keys)
     target_current_section = current_after_save(
         part["key"],
         active_keys,
         sess.get("current_section") if sess else None,
     )
-    section_json = json.dumps({k: v for k, v in data.items() if k != "session_id"}, ensure_ascii=False)
 
-    part_number = int(part["key"].replace("part", ""))
-    if 1 <= part_number <= 9:
-        db.execute(
-            text(f"""
-                UPDATE survey_sessions
-                SET current_section = :current_section,
-                    updated_at = :updated_at,
-                    section{part_number} = :section_json
-                WHERE id = :id
-            """),
-            {
-                "id": session_id,
-                "current_section": target_current_section,
-                "updated_at": now(),
-                "section_json": section_json,
-            },
-        )
-    else:
-        db.execute(
-            text("""
-                UPDATE survey_sessions
-                SET current_section = :current_section,
-                    updated_at = :updated_at
-                WHERE id = :id
-            """),
-            {
-                "id": session_id,
-                "current_section": target_current_section,
-                "updated_at": now(),
-            },
-        )
+    db.execute(
+        text("""
+            UPDATE survey_sessions
+            SET current_section = :current_section,
+                updated_at = :updated_at
+            WHERE id = :id
+        """),
+        {
+            "id": session_id,
+            "current_section": target_current_section,
+            "updated_at": now(),
+        },
+    )
 
     db.commit()
 

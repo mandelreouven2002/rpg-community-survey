@@ -15,14 +15,3 @@ class SurveySession(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=True)
     updated_at = Column(DateTime, default=datetime.utcnow, nullable=True)
     active_sections = Column(Text, nullable=True)
-
-    # Legacy compatibility columns from the existing DB.
-    section1 = Column(Text, nullable=True)
-    section2 = Column(Text, nullable=True)
-    section3 = Column(Text, nullable=True)
-    section4 = Column(Text, nullable=True)
-    section5 = Column(Text, nullable=True)
-    section6 = Column(Text, nullable=True)
-    section7 = Column(Text, nullable=True)
-    section8 = Column(Text, nullable=True)
-    section9 = Column(Text, nullable=True)
