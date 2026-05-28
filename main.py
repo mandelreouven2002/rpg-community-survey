@@ -259,6 +259,80 @@ PARTS: list[dict[str, Any]] = [
 PART_BY_KEY = {part["key"]: part for part in PARTS}
 PART_KEYS = [part["key"] for part in PARTS]
 
+SHORT_PART_KEYS = ["part1", "part2", "part3", "part9", "part11", "part16"]
+
+def hash_identifier(raw_identifier: str) -> str:
+    normalized = "".join(ch for ch in raw_identifier.strip() if ch.isdigit())
+    if not normalized:
+        normalized = raw_identifier.strip().lower()
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+def build_active_part_keys(survey_type: str = "full", roles: list[str] | None = None) -> list[str]:
+    roles = roles or []
+
+    if survey_type == "short":
+        return SHORT_PART_KEYS
+
+    active = list(PART_KEYS)
+
+    def has_any(*needles: str) -> bool:
+        return any(any(needle in role for needle in needles) for role in roles)
+
+    # Conditional sections for the full questionnaire.
+    if not has_any("מנחה"):
+        active.remove("part4")
+    if not has_any("לארפ"):
+        active.remove("part5")
+    if not has_any("הורה"):
+        active.remove("part8")
+    if not has_any("עבר"):
+        active.remove("part10")
+    if not has_any("יוצר"):
+        active.remove("part14")
+    if not has_any("עסק", "חנות"):
+        active.remove("part15")
+
+    # Always keep the core community/research sections.
+    for required in ["part1", "part2", "part3", "part9", "part11", "part12", "part13", "part16"]:
+        if required not in active:
+            active.append(required)
+
+    return [key for key in PART_KEYS if key in active]
+
+def session_active_part_keys(sess) -> list[str]:
+    if not sess:
+        return PART_KEYS
+
+    raw = sess.get("active_sections") if hasattr(sess, "get") else None
+    if raw:
+        try:
+            parsed = json.loads(raw)
+            keys = [key for key in parsed if key in PART_BY_KEY]
+            if keys:
+                return keys
+        except Exception:
+            pass
+
+    survey_type = (sess.get("survey_type") if hasattr(sess, "get") else None) or "full"
+    return build_active_part_keys(survey_type)
+
+def resume_destination(sess) -> str:
+    if not sess:
+        return "/survey"
+
+    if sess.get("submitted") or sess.get("is_submitted"):
+        return "/survey/complete"
+
+    active_keys = session_active_part_keys(sess)
+    current = sess.get("current_section") or active_keys[0]
+
+    if current == "submit":
+        return "/survey/submit"
+    if current in active_keys:
+        return f"/survey/{current}"
+
+    return f"/survey/{active_keys[0]}"
+
 
 def render(request: Request, template: str, **context):
     context["request"] = request
@@ -288,14 +362,20 @@ def get_session(db: Session, session_id: str | None):
     ).mappings().first()
 
 
-def previous_part(key: str) -> str | None:
-    i = PART_KEYS.index(key)
-    return PART_KEYS[i - 1] if i > 0 else None
+def previous_part(key: str, active_keys: list[str] | None = None) -> str | None:
+    keys = active_keys or PART_KEYS
+    if key not in keys:
+        return None
+    i = keys.index(key)
+    return keys[i - 1] if i > 0 else None
 
 
-def next_part(key: str) -> str | None:
-    i = PART_KEYS.index(key)
-    return PART_KEYS[i + 1] if i + 1 < len(PART_KEYS) else None
+def next_part(key: str, active_keys: list[str] | None = None) -> str | None:
+    keys = active_keys or PART_KEYS
+    if key not in keys:
+        return keys[0] if keys else None
+    i = keys.index(key)
+    return keys[i + 1] if i + 1 < len(keys) else None
 
 
 def normalize_json_value(value):
@@ -406,7 +486,32 @@ def save_part(db: Session, session_id: str, part: dict[str, Any], form):
         data,
     )
 
-    nxt = next_part(part["key"])
+    sess = get_session(db, session_id)
+    active_keys = session_active_part_keys(sess)
+
+    if part["key"] == "part1":
+        roles = []
+        try:
+            roles = json.loads(data.get("roles") or "[]")
+        except Exception:
+            roles = []
+
+        survey_type = (sess.get("survey_type") if sess else "full") or "full"
+        active_keys = build_active_part_keys(survey_type, roles)
+
+        db.execute(
+            text("""
+                UPDATE survey_sessions
+                SET active_sections = :active_sections
+                WHERE id = :id
+            """),
+            {
+                "id": session_id,
+                "active_sections": json.dumps(active_keys, ensure_ascii=False),
+            },
+        )
+
+    nxt = next_part(part["key"], active_keys)
     section_json = json.dumps({k: v for k, v in data.items() if k != "session_id"}, ensure_ascii=False)
 
     part_number = int(part["key"].replace("part", ""))
@@ -467,10 +572,46 @@ def consent_get(request: Request):
 @app.post("/survey/consent")
 async def consent_post(request: Request, db: Session = Depends(get_db)):
     form = await request.form()
+
     if form.get("consent") != "yes":
         return RedirectResponse("/", status_code=303)
 
+    respondent_id = str(form.get("respondent_id", "")).strip()
+    if not respondent_id:
+        return render(request, "survey/consent.html", error="נא להזין תעודת זהות / מזהה אישי כדי לאפשר חזרה לשאלון.")
+
+    survey_type = str(form.get("survey_type", "full")).strip()
+    if survey_type not in {"short", "full"}:
+        survey_type = "full"
+
+    id_hash = hash_identifier(respondent_id)
+
+    db.execute(
+        text("INSERT INTO id_hashes (id_hash) VALUES (:id_hash) ON CONFLICT (id_hash) DO NOTHING"),
+        {"id_hash": id_hash},
+    )
+
+    if form.get("resume_existing") == "yes":
+        existing = db.execute(
+            text("""
+                SELECT *
+                FROM survey_sessions
+                WHERE ip_hash = :id_hash
+                  AND COALESCE(is_submitted, FALSE) = FALSE
+                  AND COALESCE(submitted, FALSE) = FALSE
+                ORDER BY updated_at DESC NULLS LAST, created_at DESC NULLS LAST
+                LIMIT 1
+            """),
+            {"id_hash": id_hash},
+        ).mappings().first()
+
+        if existing:
+            response = RedirectResponse(resume_destination(existing), status_code=303)
+            response.set_cookie("session_id", existing["id"], httponly=True, samesite="lax")
+            return response
+
     session_id = str(uuid.uuid4())
+    active_sections = build_active_part_keys(survey_type)
 
     db.execute(
         text("""
@@ -481,19 +622,19 @@ async def consent_post(request: Request, db: Session = Depends(get_db)):
         """),
         {
             "id": session_id,
-            "ip_hash": hash_ip(request),
-            "survey_type": "full",
+            "ip_hash": id_hash,
+            "survey_type": survey_type,
             "submitted": False,
             "is_submitted": False,
-            "current_section": "part1",
+            "current_section": active_sections[0],
             "created_at": now(),
             "updated_at": now(),
-            "active_sections": json.dumps(PART_KEYS, ensure_ascii=False),
+            "active_sections": json.dumps(active_sections, ensure_ascii=False),
         },
     )
     db.commit()
 
-    response = RedirectResponse("/survey/part1", status_code=303)
+    response = RedirectResponse(f"/survey/{active_sections[0]}", status_code=303)
     response.set_cookie("session_id", session_id, httponly=True, samesite="lax")
     return response
 
@@ -514,8 +655,10 @@ def submit_get(request: Request, session_id: str | None = Cookie(None), db: Sess
     if not sess:
         return RedirectResponse("/survey", status_code=303)
 
+    active_keys = session_active_part_keys(sess)
     sections = {}
-    for part in PARTS:
+    for key in active_keys:
+        part = PART_BY_KEY[key]
         sections[part["title"]] = read_part_data(db, session_id, part)
 
     return render(request, "survey/submit.html", sections=sections)
@@ -618,16 +761,21 @@ def export_csv(db: Session = Depends(get_db)):
 
 @app.get("/survey/{part_key}", response_class=HTMLResponse)
 def part_get(part_key: str, request: Request, session_id: str | None = Cookie(None), db: Session = Depends(get_db)):
-    if part_key not in PART_BY_KEY:
-        return RedirectResponse("/survey", status_code=303)
-
     sess = get_session(db, session_id)
     if not sess:
         return RedirectResponse("/survey", status_code=303)
 
+    active_keys = session_active_part_keys(sess)
+
+    if part_key not in PART_BY_KEY:
+        return RedirectResponse("/survey", status_code=303)
+
+    if part_key not in active_keys:
+        return RedirectResponse(resume_destination(sess), status_code=303)
+
     part = PART_BY_KEY[part_key]
     data = read_part_data(db, session_id, part)
-    progress = int(((PART_KEYS.index(part_key) + 1) / len(PART_KEYS)) * 100)
+    progress = int(((active_keys.index(part_key) + 1) / len(active_keys)) * 100)
 
     return render(
         request,
@@ -637,25 +785,31 @@ def part_get(part_key: str, request: Request, session_id: str | None = Cookie(No
         questions=part["questions"],
         data=data,
         progress=progress,
-        previous=previous_part(part_key),
+        previous=previous_part(part_key, active_keys),
     )
 
 
 @app.post("/survey/{part_key}")
 async def part_post(part_key: str, request: Request, session_id: str | None = Cookie(None), db: Session = Depends(get_db)):
-    if part_key not in PART_BY_KEY:
-        return RedirectResponse("/survey", status_code=303)
-
     sess = get_session(db, session_id)
     if not sess:
         return RedirectResponse("/survey", status_code=303)
+
+    active_keys = session_active_part_keys(sess)
+
+    if part_key not in PART_BY_KEY:
+        return RedirectResponse("/survey", status_code=303)
+
+    if part_key not in active_keys:
+        return RedirectResponse(resume_destination(sess), status_code=303)
 
     part = PART_BY_KEY[part_key]
     form = await request.form()
 
     error = validate_form(form, part)
     if error:
-        progress = int(((PART_KEYS.index(part_key) + 1) / len(PART_KEYS)) * 100)
+        active_keys = session_active_part_keys(sess)
+        progress = int(((active_keys.index(part_key) + 1) / len(active_keys)) * 100)
         data = {}
         for question in part["questions"]:
             if question["type"] == "checkbox":
@@ -671,13 +825,15 @@ async def part_post(part_key: str, request: Request, session_id: str | None = Co
             questions=part["questions"],
             data=data,
             progress=progress,
-            previous=previous_part(part_key),
+            previous=previous_part(part_key, active_keys),
             error=error,
         )
 
     save_part(db, session_id, part, form)
 
-    nxt = next_part(part_key)
+    sess = get_session(db, session_id)
+    active_keys = session_active_part_keys(sess)
+    nxt = next_part(part_key, active_keys)
     if nxt:
         return RedirectResponse(f"/survey/{nxt}", status_code=303)
 
