@@ -978,7 +978,10 @@ async def consent_post(request: Request, session_id: str | None = Cookie(None), 
     if already_submitted:
         return render(request, "survey/consent.html", **consent_context(request, db, session_id=session_id, error="מספר תעודת הזהות כבר שימש לשליחת שאלון. לא ניתן לשלוח שאלון נוסף.", force_form=True))
 
-    ip_hash = hash_ip(request)
+    # Cookie-based resume is now the source of truth.
+    # The ip_hash column is kept only for DB compatibility.
+    # We intentionally do not store or calculate the user's IP for draft resume.
+    ip_hash = "cookie-only"
     resume_choice = form.get("resume_existing")
 
     if resume_choice == "yes":
