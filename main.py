@@ -288,7 +288,51 @@ def export_csv(db: Session = Depends(get_db)):
         iter([buffer.getvalue()]),
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f"attachment; filename={filename}"},
-    )\n\n@app.get("/survey/{section}", response_class=HTMLResponse)
+    )
+
+@app.get("/survey/submit", response_class=HTMLResponse)
+def submit_get(request: Request, session_id: str | None = Cookie(None), db: Session = Depends(get_db)):
+    sess = get_session(db, session_id)
+    if not sess:
+        return RedirectResponse("/survey", status_code=303)
+
+    sections = {}
+    for sec in SECTION_ORDER:
+        sections[SECTION_TITLES[sec]] = parse_json(getattr(sess, sec), {})
+
+    return render(request, "survey/submit.html", sections=sections)
+
+@app.post("/survey/submit")
+def submit_post(request: Request, session_id: str | None = Cookie(None), db: Session = Depends(get_db)):
+    sess = get_session(db, session_id)
+    if not sess:
+        return RedirectResponse("/survey", status_code=303)
+
+    sess.is_submitted = True
+    sess.current_section = "complete"
+    sess.updated_at = datetime.utcnow()
+    db.commit()
+
+    response = RedirectResponse("/survey/complete", status_code=303)
+    response.delete_cookie("session_id")
+    return response
+
+@app.get("/survey/complete", response_class=HTMLResponse)
+def complete_get(request: Request):
+    return render(request, "survey/complete.html")
+
+@app.post("/survey/delete")
+def delete_my_data(session_id: str | None = Cookie(None), db: Session = Depends(get_db)):
+    sess = get_session(db, session_id)
+    if sess:
+        db.delete(sess)
+        db.commit()
+
+    response = RedirectResponse("/", status_code=303)
+    response.delete_cookie("session_id")
+    return response
+
+@app.get("/survey/{section}", response_class=HTMLResponse)
 def section_get(section: str, request: Request, session_id: str | None = Cookie(None), db: Session = Depends(get_db)):
     if section not in SECTION_ORDER:
         return RedirectResponse("/survey", status_code=303)
@@ -348,45 +392,3 @@ async def section_post(section: str, request: Request, session_id: str | None = 
         return RedirectResponse(f"/survey/{nxt}", status_code=303)
 
     return RedirectResponse("/survey/submit", status_code=303)
-
-@app.get("/survey/submit", response_class=HTMLResponse)
-def submit_get(request: Request, session_id: str | None = Cookie(None), db: Session = Depends(get_db)):
-    sess = get_session(db, session_id)
-    if not sess:
-        return RedirectResponse("/survey", status_code=303)
-
-    sections = {}
-    for sec in SECTION_ORDER:
-        sections[SECTION_TITLES[sec]] = parse_json(getattr(sess, sec), {})
-
-    return render(request, "survey/submit.html", sections=sections)
-
-@app.post("/survey/submit")
-def submit_post(request: Request, session_id: str | None = Cookie(None), db: Session = Depends(get_db)):
-    sess = get_session(db, session_id)
-    if not sess:
-        return RedirectResponse("/survey", status_code=303)
-
-    sess.is_submitted = True
-    sess.current_section = "complete"
-    sess.updated_at = datetime.utcnow()
-    db.commit()
-
-    response = RedirectResponse("/survey/complete", status_code=303)
-    response.delete_cookie("session_id")
-    return response
-
-@app.get("/survey/complete", response_class=HTMLResponse)
-def complete_get(request: Request):
-    return render(request, "survey/complete.html")
-
-@app.post("/survey/delete")
-def delete_my_data(session_id: str | None = Cookie(None), db: Session = Depends(get_db)):
-    sess = get_session(db, session_id)
-    if sess:
-        db.delete(sess)
-        db.commit()
-
-    response = RedirectResponse("/", status_code=303)
-    response.delete_cookie("session_id")
-    return response\n
