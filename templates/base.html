@@ -6,6 +6,7 @@
   <title>{% block title %}סקר קהילת משחקי התפקידים בישראל{% endblock %}</title>
   <link rel="icon" href="https://gate.roleplay.top/rpg-game.png">
   <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/accessibility.js" defer></script>
 </head>
 <body>
   <nav class="site-nav">
@@ -105,5 +106,63 @@
     }
   });
   </script>
+
+  <div class="accessibility-widget" aria-label="אפשרויות נגישות">
+    <button
+      type="button"
+      class="accessibility-toggle"
+      id="accessibilityToggle"
+      aria-expanded="false"
+      aria-controls="accessibilityPanel"
+      aria-label="פתיחת תפריט נגישות"
+    >
+      <span aria-hidden="true">נגישות</span>
+    </button>
+
+    <section
+      class="accessibility-panel"
+      id="accessibilityPanel"
+      aria-labelledby="accessibilityPanelTitle"
+      hidden
+    >
+      <div class="accessibility-panel-header">
+        <h2 id="accessibilityPanelTitle">אפשרויות נגישות</h2>
+        <button type="button" class="accessibility-close" data-accessibility-close aria-label="סגירת תפריט נגישות">×</button>
+      </div>
+
+      <div class="accessibility-control">
+        <span class="accessibility-label">גודל טקסט</span>
+        <div class="accessibility-options" role="group" aria-label="בחירת גודל טקסט">
+          <button type="button" data-font-size="normal">רגיל</button>
+          <button type="button" data-font-size="large">גדול</button>
+          <button type="button" data-font-size="xlarge">גדול מאוד</button>
+        </div>
+      </div>
+
+      <div class="accessibility-control">
+        <span class="accessibility-label">צבעים וניגודיות</span>
+        <div class="accessibility-options" role="group" aria-label="בחירת מצב צבעים">
+          <button type="button" data-theme-choice="default">רגיל</button>
+          <button type="button" data-theme-choice="contrast">ניגודיות גבוהה</button>
+          <button type="button" data-theme-choice="dark">כהה</button>
+        </div>
+      </div>
+
+      <label class="accessibility-switch">
+        <input type="checkbox" data-toggle-links>
+        <span>הדגשת קישורים</span>
+      </label>
+
+      <label class="accessibility-switch">
+        <input type="checkbox" data-toggle-motion>
+        <span>הפחתת תנועה ואנימציות</span>
+      </label>
+
+      <button type="button" class="accessibility-reset" data-accessibility-reset>
+        איפוס הגדרות נגישות
+      </button>
+    </section>
+  </div>
+
 </body>
 </html>
