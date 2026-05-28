@@ -413,6 +413,30 @@ def now() -> datetime:
     return datetime.utcnow()
 
 
+SURVEY_COOKIE_MAX_AGE = 60 * 60 * 24 * 30
+
+
+def is_secure_request(request: Request) -> bool:
+    proto = request.headers.get("x-forwarded-proto", request.url.scheme)
+    return proto == "https"
+
+
+def set_survey_cookie(response: RedirectResponse, request: Request, name: str, value: str):
+    response.set_cookie(
+        name,
+        value,
+        max_age=SURVEY_COOKIE_MAX_AGE,
+        httponly=True,
+        secure=is_secure_request(request),
+        samesite="lax",
+    )
+
+
+def clear_survey_cookies(response: RedirectResponse):
+    response.delete_cookie("session_id")
+    response.delete_cookie("respondent_id_hash")
+
+
 def get_session(db: Session, session_id: str | None):
     if not session_id:
         return None
@@ -423,6 +447,7 @@ def get_session(db: Session, session_id: str | None):
 
 
 def get_open_draft_by_ip(db: Session, ip_hash: str):
+    # Legacy helper. Kept for old data / manual debugging, but no longer used as the main resume mechanism.
     return db.execute(
         text("""
             SELECT *
@@ -437,8 +462,34 @@ def get_open_draft_by_ip(db: Session, ip_hash: str):
     ).mappings().first()
 
 
-def consent_context(request: Request, db: Session, error: str | None = None, force_form: bool = False):
-    existing = get_open_draft_by_ip(db, hash_ip(request))
+def get_open_draft_by_cookie(db: Session, session_id: str | None):
+    sess = get_session(db, session_id)
+    if not sess:
+        return None
+
+    if sess.get("submitted") or sess.get("is_submitted"):
+        return None
+
+    return sess
+
+
+def delete_open_session_data(db: Session, session_id: str | None) -> bool:
+    sess = get_open_draft_by_cookie(db, session_id)
+    if not sess:
+        return False
+
+    delete_session_data(db, session_id)
+    return True
+
+
+def consent_context(
+    request: Request,
+    db: Session,
+    session_id: str | None = None,
+    error: str | None = None,
+    force_form: bool = False,
+):
+    existing = get_open_draft_by_cookie(db, session_id)
     current_section = existing.get("current_section") if existing else None
 
     return {
@@ -832,25 +883,34 @@ def privacy_get(request: Request):
 
 
 @app.get("/survey", response_class=HTMLResponse)
-def consent_get(request: Request, db: Session = Depends(get_db)):
+def consent_get(
+    request: Request,
+    session_id: str | None = Cookie(None),
+    db: Session = Depends(get_db),
+):
     force_form = request.query_params.get("start") == "new"
-    return render(request, "survey/consent.html", **consent_context(request, db, force_form=force_form))
+    return render(
+        request,
+        "survey/consent.html",
+        **consent_context(request, db, session_id=session_id, force_form=force_form),
+    )
 
 
 @app.post("/survey/start-new")
-def survey_start_new(request: Request, db: Session = Depends(get_db)):
-    ip_hash = hash_ip(request)
-
-    delete_unsubmitted_by_ip(db, ip_hash)
+def survey_start_new(
+    request: Request,
+    session_id: str | None = Cookie(None),
+    db: Session = Depends(get_db),
+):
+    delete_open_session_data(db, session_id)
 
     response = RedirectResponse("/survey?start=new", status_code=303)
-    response.delete_cookie("session_id")
-    response.delete_cookie("respondent_id_hash")
+    clear_survey_cookies(response)
     return response
 
 
 @app.post("/survey/consent")
-async def consent_post(request: Request, db: Session = Depends(get_db)):
+async def consent_post(request: Request, session_id: str | None = Cookie(None), db: Session = Depends(get_db)):
     form = await request.form()
 
     if form.get("consent") != "yes":
@@ -858,10 +918,10 @@ async def consent_post(request: Request, db: Session = Depends(get_db)):
 
     respondent_id = str(form.get("respondent_id", "")).strip()
     if not respondent_id:
-        return render(request, "survey/consent.html", **consent_context(request, db, error="נא להזין תעודת זהות.", force_form=True))
+        return render(request, "survey/consent.html", **consent_context(request, db, session_id=session_id, error="נא להזין תעודת זהות.", force_form=True))
 
     if not is_valid_israeli_id(respondent_id):
-        return render(request, "survey/consent.html", **consent_context(request, db, error="מספר תעודת הזהות אינו תקין. נא לבדוק ולהכניס שוב.", force_form=True))
+        return render(request, "survey/consent.html", **consent_context(request, db, session_id=session_id, error="מספר תעודת הזהות אינו תקין. נא לבדוק ולהכניס שוב.", force_form=True))
 
     respondent_id_hash = hash_identifier(respondent_id)
 
@@ -871,22 +931,22 @@ async def consent_post(request: Request, db: Session = Depends(get_db)):
     ).mappings().first()
 
     if already_submitted:
-        return render(request, "survey/consent.html", **consent_context(request, db, error="מספר תעודת הזהות כבר שימש לשליחת שאלון. לא ניתן לשלוח שאלון נוסף.", force_form=True))
+        return render(request, "survey/consent.html", **consent_context(request, db, session_id=session_id, error="מספר תעודת הזהות כבר שימש לשליחת שאלון. לא ניתן לשלוח שאלון נוסף.", force_form=True))
 
     ip_hash = hash_ip(request)
     resume_choice = form.get("resume_existing")
 
     if resume_choice == "yes":
-        existing = get_open_draft_by_ip(db, ip_hash)
+        existing = get_open_draft_by_cookie(db, session_id)
 
         if existing:
             response = RedirectResponse(resume_destination(existing), status_code=303)
-            response.set_cookie("session_id", existing["id"], httponly=True, samesite="lax")
-            response.set_cookie("respondent_id_hash", respondent_id_hash, httponly=True, samesite="lax")
+            set_survey_cookie(response, request, "session_id", existing["id"])
+            set_survey_cookie(response, request, "respondent_id_hash", respondent_id_hash)
             return response
 
     if resume_choice == "no":
-        delete_unsubmitted_by_ip(db, ip_hash)
+        delete_open_session_data(db, session_id)
 
     session_id = str(uuid.uuid4())
 
@@ -911,8 +971,8 @@ async def consent_post(request: Request, db: Session = Depends(get_db)):
     db.commit()
 
     response = RedirectResponse("/survey/part1", status_code=303)
-    response.set_cookie("session_id", session_id, httponly=True, samesite="lax")
-    response.set_cookie("respondent_id_hash", respondent_id_hash, httponly=True, samesite="lax")
+    set_survey_cookie(response, request, "session_id", session_id)
+    set_survey_cookie(response, request, "respondent_id_hash", respondent_id_hash)
     return response
 
 
@@ -1053,8 +1113,7 @@ def submit_post(
     db.commit()
 
     response = RedirectResponse("/survey/complete", status_code=303)
-    response.delete_cookie("session_id")
-    response.delete_cookie("respondent_id_hash")
+    clear_survey_cookies(response)
     return response
 
 
@@ -1101,18 +1160,10 @@ def delete_my_data(
     session_id: str | None = Cookie(None),
     db: Session = Depends(get_db),
 ):
-    if session_id:
-        sess = get_session(db, session_id)
-        if sess:
-            delete_unsubmitted_by_ip(db, sess["ip_hash"])
-        else:
-            delete_unsubmitted_by_ip(db, hash_ip(request))
-    else:
-        delete_unsubmitted_by_ip(db, hash_ip(request))
+    delete_open_session_data(db, session_id)
 
     response = RedirectResponse("/", status_code=303)
-    response.delete_cookie("session_id")
-    response.delete_cookie("respondent_id_hash")
+    clear_survey_cookies(response)
     return response
 
 
@@ -1738,8 +1789,7 @@ async def part_post(part_key: str, request: Request, session_id: str | None = Co
         if birth_date_raw and is_under_13(birth_date_raw):
             delete_session_data(db, session_id)
             response = RedirectResponse("/survey/too-young", status_code=303)
-            response.delete_cookie("session_id")
-            response.delete_cookie("respondent_id_hash")
+            clear_survey_cookies(response)
             return response
 
     error = validate_form(form, part)
