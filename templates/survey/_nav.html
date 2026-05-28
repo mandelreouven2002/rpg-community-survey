@@ -3,7 +3,7 @@
 {% set current_idx = active.index(current) if current in active else 0 %}
 {% set percent = ((current_idx) / total * 100)|round %}
 <div class="top-bar">
-    <button type="button" class="back-btn" onclick="window.history.back()">➔ חזור</button>
+    <button type="button" class="back-btn" onclick="window.history.back()">חזרה</button>
     <div class="progress-container"><div class="progress-bar" style="width: {{ percent }}%"></div></div>
     <div class="step-text">שלב {{ current_idx + 1 }} מתוך {{ total }}</div>
 </div>

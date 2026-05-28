@@ -2,9 +2,9 @@
 {% block content %}
 <div class="top-bar">
   {% if previous %}
-    <a class="back-btn" href="/survey/{{ previous }}">➔ חזור</a>
+    <a class="back-btn" href="/survey/{{ previous }}">חזרה</a>
   {% else %}
-    <a class="back-btn" href="/">➔ חזור</a>
+    <a class="back-btn" href="/">חזרה</a>
   {% endif %}
   <div class="progress-container"><div class="progress-bar" style="width:{{ progress }}%"></div></div>
   <div class="step-text">{{ title }}</div>
@@ -74,7 +74,7 @@
       {% endfor %}
 
       <div class="btn-row">
-        <button type="submit" class="btn btn-primary">שמור/י והמשך/י ←</button>
+        <button type="submit" class="btn btn-primary">שמור/י והמשך/י</button>
       </div>
     </form>
   </section>

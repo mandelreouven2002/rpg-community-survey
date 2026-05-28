@@ -8,12 +8,25 @@
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+  <nav class="site-nav">
+    <a class="site-nav-brand" href="/">
+      <img src="https://gate.roleplay.top/rpg-game.png" alt="שער להרפתקה">
+      <span>דוח הקהילה</span>
+    </a>
+
+    <div class="site-nav-links">
+      <a href="/">בית</a>
+      <a href="/survey">מילוי השאלון</a>
+      <a href="https://gate.roleplay.top/" target="_blank" rel="noopener">שער להרפתקה</a>
+    </div>
+  </nav>
+
   {% block content %}{% endblock %}
 
   {% block delete_btn %}
   <div class="delete-btn-wrapper">
     <form method="post" action="/survey/delete" onsubmit="return confirm('האם למחוק את כל הנתונים שלך מהמערכת?')">
-      <button type="submit" id="reset-btn">🗑 מחק את כל הנתונים שלי</button>
+      <button type="submit" id="reset-btn">מחיקת הטופס</button>
     </form>
   </div>
   {% endblock %}
@@ -22,15 +35,17 @@
   function updateCardStyles() {
     document.querySelectorAll('.checkbox-group label, .radio-group label, .scale-group label').forEach(lbl => {
       const input = lbl.querySelector('input');
-      if(input && input.checked) lbl.classList.add('selected');
+      if (input && input.checked) lbl.classList.add('selected');
       else lbl.classList.remove('selected');
     });
   }
+
   document.addEventListener('change', function(e) {
-    if(e.target.tagName === 'INPUT' && (e.target.type === 'radio' || e.target.type === 'checkbox')) {
+    if (e.target.tagName === 'INPUT' && (e.target.type === 'radio' || e.target.type === 'checkbox')) {
       updateCardStyles();
     }
   });
+
   window.addEventListener('DOMContentLoaded', updateCardStyles);
   </script>
 </body>
