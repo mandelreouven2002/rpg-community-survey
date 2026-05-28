@@ -14,4 +14,5 @@ class SurveySession(Base):
     current_section = Column(String(20), default="part1")
     created_at = Column(DateTime, default=datetime.utcnow, nullable=True)
     updated_at = Column(DateTime, default=datetime.utcnow, nullable=True)
+    submitted_at = Column(DateTime, nullable=True)
     active_sections = Column(Text, nullable=True)

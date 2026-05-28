@@ -861,9 +861,16 @@ def save_part(db: Session, session_id: str, part: dict[str, Any], form):
     db.commit()
 
 
+
+def ensure_schema_migrations():
+    with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE survey_sessions ADD COLUMN IF NOT EXISTS submitted_at TIMESTAMP NULL"))
+
+
 @app.on_event("startup")
 def startup():
     Base.metadata.create_all(bind=engine)
+    ensure_schema_migrations()
     cleanup_old_drafts()
 
 
@@ -1105,10 +1112,11 @@ def submit_post(
                 is_submitted = TRUE,
                 current_section = 'complete',
                 ip_hash = 'submitted-redacted',
-                updated_at = :updated_at
+                submitted_at = :submitted_at,
+                updated_at = :submitted_at
             WHERE id = :id
         """),
-        {"id": session_id, "updated_at": now()},
+        {"id": session_id, "submitted_at": now()},
     )
     db.commit()
 
