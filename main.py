@@ -422,6 +422,33 @@ def get_session(db: Session, session_id: str | None):
     ).mappings().first()
 
 
+def get_open_draft_by_ip(db: Session, ip_hash: str):
+    return db.execute(
+        text("""
+            SELECT *
+            FROM survey_sessions
+            WHERE ip_hash = :ip_hash
+              AND COALESCE(is_submitted, FALSE) = FALSE
+              AND COALESCE(submitted, FALSE) = FALSE
+            ORDER BY updated_at DESC NULLS LAST, created_at DESC NULLS LAST
+            LIMIT 1
+        """),
+        {"ip_hash": ip_hash},
+    ).mappings().first()
+
+
+def consent_context(request: Request, db: Session, error: str | None = None, force_form: bool = False):
+    existing = get_open_draft_by_ip(db, hash_ip(request))
+    current_section = existing.get("current_section") if existing else None
+
+    return {
+        "error": error,
+        "has_existing_draft": bool(existing) and not force_form,
+        "existing_current_section": current_section or "",
+        "force_form": force_form,
+    }
+
+
 def is_under_13(birth_date_raw: str) -> bool:
     if not birth_date_raw:
         return False
@@ -820,8 +847,8 @@ def health():
 
 
 @app.get("/survey", response_class=HTMLResponse)
-def consent_get(request: Request):
-    return render(request, "survey/consent.html")
+def consent_get(request: Request, db: Session = Depends(get_db)):
+    return render(request, "survey/consent.html", **consent_context(request, db))
 
 
 @app.post("/survey/consent")
@@ -833,10 +860,10 @@ async def consent_post(request: Request, db: Session = Depends(get_db)):
 
     respondent_id = str(form.get("respondent_id", "")).strip()
     if not respondent_id:
-        return render(request, "survey/consent.html", error="נא להזין תעודת זהות.")
+        return render(request, "survey/consent.html", **consent_context(request, db, error="נא להזין תעודת זהות.", force_form=True))
 
     if not is_valid_israeli_id(respondent_id):
-        return render(request, "survey/consent.html", error="מספר תעודת הזהות אינו תקין. נא לבדוק ולהכניס שוב.")
+        return render(request, "survey/consent.html", **consent_context(request, db, error="מספר תעודת הזהות אינו תקין. נא לבדוק ולהכניס שוב.", force_form=True))
 
     respondent_id_hash = hash_identifier(respondent_id)
 
@@ -846,29 +873,22 @@ async def consent_post(request: Request, db: Session = Depends(get_db)):
     ).mappings().first()
 
     if already_submitted:
-        return render(request, "survey/consent.html", error="מספר תעודת הזהות כבר שימש לשליחת שאלון. לא ניתן לשלוח שאלון נוסף.")
+        return render(request, "survey/consent.html", **consent_context(request, db, error="מספר תעודת הזהות כבר שימש לשליחת שאלון. לא ניתן לשלוח שאלון נוסף.", force_form=True))
 
     ip_hash = hash_ip(request)
+    resume_choice = form.get("resume_existing")
 
-    if form.get("resume_existing") == "yes":
-        existing = db.execute(
-            text("""
-                SELECT *
-                FROM survey_sessions
-                WHERE ip_hash = :ip_hash
-                  AND COALESCE(is_submitted, FALSE) = FALSE
-                  AND COALESCE(submitted, FALSE) = FALSE
-                ORDER BY updated_at DESC NULLS LAST, created_at DESC NULLS LAST
-                LIMIT 1
-            """),
-            {"ip_hash": ip_hash},
-        ).mappings().first()
+    if resume_choice == "yes":
+        existing = get_open_draft_by_ip(db, ip_hash)
 
         if existing:
             response = RedirectResponse(resume_destination(existing), status_code=303)
             response.set_cookie("session_id", existing["id"], httponly=True, samesite="lax")
             response.set_cookie("respondent_id_hash", respondent_id_hash, httponly=True, samesite="lax")
             return response
+
+    if resume_choice == "no":
+        delete_unsubmitted_by_ip(db, ip_hash)
 
     session_id = str(uuid.uuid4())
 

@@ -976,3 +976,102 @@ ul {
     font-size: 2.05rem;
   }
 }
+
+/* Choice alignment fix */
+.checkbox-group label,
+.radio-group label {
+  align-items: center;
+}
+
+.checkbox-group input[type="checkbox"],
+.checkbox-group input[type="radio"],
+.radio-group input[type="checkbox"],
+.radio-group input[type="radio"] {
+  flex: 0 0 auto;
+  width: 1.12rem;
+  height: 1.12rem;
+  margin: 0;
+  transform: translateY(0);
+}
+
+/* Consent modal */
+.consent-page {
+  min-height: 52vh;
+}
+
+.consent-intro {
+  max-width: 820px;
+  margin-inline: auto;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 22px;
+  background: rgba(31, 26, 22, 0.46);
+}
+
+.modal-backdrop.is-visible {
+  display: flex;
+}
+
+.modal-card {
+  width: min(720px, 100%);
+  max-height: min(86vh, 760px);
+  overflow: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  padding: clamp(22px, 4vw, 34px);
+  box-shadow: var(--shadow-md);
+}
+
+.modal-card h2 {
+  margin: 0 0 12px;
+  color: var(--brand-dark);
+  font-size: clamp(1.55rem, 3vw, 2.2rem);
+  line-height: 1.15;
+}
+
+.modal-card p {
+  color: var(--text-soft);
+}
+
+.modal-step[data-step="consent"] {
+  display: none;
+}
+
+.modal-step[data-step="consent"].is-visible {
+  display: block;
+}
+
+.modal-step.is-hidden {
+  display: none;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 22px;
+}
+
+@media (max-width: 760px) {
+  .modal-backdrop {
+    align-items: flex-end;
+    padding: 10px;
+  }
+
+  .modal-card {
+    max-height: 92vh;
+    border-radius: 24px;
+  }
+
+  .modal-actions {
+    flex-direction: column;
+  }
+}

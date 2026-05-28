@@ -7,8 +7,8 @@
   <div class="step-text">הסכמה וזיהוי</div>
 </div>
 
-<main class="container">
-  <section class="card">
+<main class="container consent-page">
+  <section class="card consent-intro">
     <h1>לפני שמתחילים</h1>
 
     {% if error %}
@@ -27,60 +27,151 @@
       לא לפרסם תשובות אישיות של משתתפים.
     </div>
 
-    <h2>פרטיות וזיהוי</h2>
-
     <p>
-      כדי למנוע שליחת שאלון כפול, נבקש להזין מספר תעודת זהות.
-      המספר עצמו לא נשמר במסד הנתונים. המערכת בודקת שהמספר תקין, ובסיום השאלון שומרת רק hash חד־כיווני שלו.
+      אם כבר התחלת למלא את השאלון, ננסה לזהות טיוטה פתוחה לפי כתובת ה־IP ולאפשר לך להמשיך מהמקום שבו עצרת.
     </p>
 
-    <p>
-      בנוסף, המערכת משתמשת ב־hash של כתובת ה־IP כדי לנסות לאפשר חזרה לשאלון פתוח אם יצאת באמצע.
-      אין התחייבות טכנית שהשחזור תמיד יעבוד, למשל אם החלפת רשת, דפדפן או מכשיר.
-    </p>
-
-    <h2>הסכמה להשתתפות</h2>
-
-    <p>
-      ההשתתפות בשאלון היא מרצון. ניתן לא להמשיך, וניתן למחוק את הטופס במהלך המילוי באמצעות כפתור המחיקה.
-      חלק מהשאלות הן חובה כדי לאפשר ניתוח משמעותי של הנתונים; שאלות רגישות או מזהות יותר נשמרו מצומצמות ככל האפשר.
-    </p>
-
-    <form method="post" action="/survey/consent" class="form">
-      <div class="form-group">
-        <label>מספר תעודת זהות *</label>
-        <input type="text" name="respondent_id" inputmode="numeric" autocomplete="off" required>
-        <p class="field-help">
-          יש להזין מספר תקין. המספר הגולמי אינו נשמר; רק hash חד־כיווני יישמר לאחר שליחת השאלון.
-        </p>
-      </div>
-
-      <div class="form-group">
-        <label>המשך שאלון קיים</label>
-        <div class="checkbox-group">
-          <label>
-            <input type="checkbox" name="resume_existing" value="yes" checked>
-            אם כבר התחלתי שאלון פתוח מאותה כתובת IP, נסו להחזיר אותי למקום שבו עצרתי
-          </label>
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label>האם את/ה מסכים/ה להשתתף בשאלון? *</label>
-        <div class="radio-group">
-          <label>
-            <input type="radio" name="consent" value="yes" required>
-            כן, קראתי והבנתי את ההסבר ואני מסכים/ה להשתתף
-          </label>
-          <label>
-            <input type="radio" name="consent" value="no">
-            לא, אינני מעוניין/ת להשתתף
-          </label>
-        </div>
-      </div>
-
-      <button type="submit" class="btn btn-primary">המשך לחלק הראשון</button>
-    </form>
+    <button type="button" class="btn btn-primary" data-open-consent="new">
+      התחלת שאלון
+    </button>
   </section>
 </main>
+
+{% if has_existing_draft %}
+<div class="modal-backdrop is-visible" id="resumeModal" aria-hidden="false">
+{% else %}
+<div class="modal-backdrop" id="resumeModal" aria-hidden="true">
+{% endif %}
+  <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="resumeTitle">
+    <div class="modal-step" data-step="choice">
+      <h2 id="resumeTitle">התחלת כבר את השאלון!</h2>
+      <p>
+        מצאנו טיוטה פתוחה של השאלון מהמכשיר או מהרשת הנוכחיים.
+        אפשר להמשיך מהמקום שבו עצרת, או להתחיל שאלון חדש מההתחלה.
+      </p>
+
+      {% if existing_current_section %}
+        <p class="field-help">
+          השלב האחרון שנשמר: {{ existing_current_section }}
+        </p>
+      {% endif %}
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-primary" data-resume-choice="yes">
+          כן, להמשיך מהמקום שעצרתי
+        </button>
+        <button type="button" class="btn btn-soft" data-resume-choice="no">
+          לא, להתחיל מחדש
+        </button>
+      </div>
+    </div>
+
+    <div class="modal-step" data-step="consent">
+      <h2>אישור פרטיות והסכמה</h2>
+
+      <p>
+        לפני המעבר לשאלון, נבקש לאשר שוב את תנאי ההשתתפות ולהזין תעודת זהות.
+      </p>
+
+      <div class="notice-box">
+        <strong>חשוב:</strong>
+        מספר תעודת הזהות לא נשמר כפי שהוא. המערכת בודקת שהמספר תקין, ובסיום השאלון שומרת רק hash חד־כיווני שלו.
+        תשובות השאלון ינותחו בצורה מצרפית בלבד.
+      </div>
+
+      <form method="post" action="/survey/consent" class="form">
+        <input type="hidden" name="resume_existing" id="resumeExistingInput" value="{% if has_existing_draft %}yes{% else %}no{% endif %}">
+
+        <div class="form-group">
+          <label>מספר תעודת זהות *</label>
+          <input type="text" name="respondent_id" inputmode="numeric" autocomplete="off" required>
+          <p class="field-help">
+            יש להזין מספר תקין. המספר הגולמי אינו נשמר; רק hash חד־כיווני יישמר לאחר שליחת השאלון.
+          </p>
+        </div>
+
+        <div class="form-group">
+          <label>האם את/ה מסכים/ה להשתתף בשאלון? *</label>
+          <div class="radio-group">
+            <label>
+              <input type="radio" name="consent" value="yes" required>
+              <span>כן, קראתי והבנתי את ההסבר ואני מסכים/ה להשתתף</span>
+            </label>
+            <label>
+              <input type="radio" name="consent" value="no">
+              <span>לא, אינני מעוניין/ת להשתתף</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="submit" class="btn btn-primary">אישור והמשך</button>
+          <button type="button" class="btn btn-soft" data-close-modal>חזרה לעמוד</button>
+        </div>
+      </form>
+    </div>
+  </section>
+</div>
+
+<script>
+(function () {
+  const modal = document.getElementById('resumeModal');
+  const hiddenInput = document.getElementById('resumeExistingInput');
+  const choiceStep = modal?.querySelector('[data-step="choice"]');
+  const consentStep = modal?.querySelector('[data-step="consent"]');
+
+  function showModal(mode) {
+    if (!modal) return;
+
+    modal.classList.add('is-visible');
+    modal.setAttribute('aria-hidden', 'false');
+
+    if (mode === 'choice') {
+      choiceStep?.classList.remove('is-hidden');
+      consentStep?.classList.remove('is-visible');
+    } else {
+      choiceStep?.classList.add('is-hidden');
+      consentStep?.classList.add('is-visible');
+
+      const idInput = consentStep?.querySelector('input[name="respondent_id"]');
+      if (idInput) setTimeout(() => idInput.focus(), 80);
+    }
+  }
+
+  function closeModal() {
+    if (!modal) return;
+
+    modal.classList.remove('is-visible');
+    modal.setAttribute('aria-hidden', 'true');
+  }
+
+  document.querySelectorAll('[data-open-consent]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const mode = btn.getAttribute('data-open-consent') || 'new';
+      if (hiddenInput) hiddenInput.value = mode === 'resume' ? 'yes' : 'no';
+      showModal('consent');
+    });
+  });
+
+  document.querySelectorAll('[data-resume-choice]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (hiddenInput) hiddenInput.value = btn.getAttribute('data-resume-choice');
+      showModal('consent');
+    });
+  });
+
+  document.querySelectorAll('[data-close-modal]').forEach(btn => {
+    btn.addEventListener('click', closeModal);
+  });
+
+  {% if has_existing_draft %}
+  showModal('choice');
+  {% endif %}
+
+  {% if force_form or error %}
+  if (hiddenInput) hiddenInput.value = 'no';
+  showModal('consent');
+  {% endif %}
+})();
+</script>
 {% endblock %}
