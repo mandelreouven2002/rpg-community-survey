@@ -1615,3 +1615,18 @@ html[data-theme="contrast"] .legal-page a.btn-soft:visited {
 .form-group > label + .field-help + .range-choice-group {
   margin-top: 0;
 }
+
+/* Question help text: visually attach to the question, not the answer choices */
+.form-group > label + .question-help {
+  margin-top: -10px !important;
+  margin-bottom: 20px !important;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.form-group > .question-help + .radio-group,
+.form-group > .question-help + .checkbox-group,
+.form-group > .question-help + .scale-group,
+.form-group > .question-help + .range-choice-group {
+  margin-top: 0 !important;
+}
