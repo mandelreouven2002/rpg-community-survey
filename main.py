@@ -23,13 +23,34 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 
-def q(name: str, label: str, type_: str = "text", options=None, required: bool = False, min_: int = 1, max_: int = 5):
+def q(
+    name: str,
+    label: str,
+    type_: str = "text",
+    options=None,
+    required: bool = False,
+    min_: int = 1,
+    max_: int = 5,
+    help_text: str | None = None,
+    min_name: str | None = None,
+    max_name: str | None = None,
+):
     item = {"name": name, "label": label, "type": type_, "required": required}
+
     if options is not None:
         item["options"] = options
-    if type_ == "scale":
+
+    if type_ in {"scale", "range"}:
         item["min"] = min_
         item["max"] = max_
+
+    if help_text:
+        item["help"] = help_text
+
+    if type_ == "range":
+        item["min_name"] = min_name or f"{name}_min"
+        item["max_name"] = max_name or f"{name}_max"
+
     return item
 
 
@@ -62,18 +83,34 @@ PARTS: list[dict[str, Any]] = [
         "key": "part3",
         "table": "part3_tabletop",
         "title": "חלק 3 — משחקים שולחניים",
-        "columns": ["play_currently", "frequency", "frameworks", "locations", "online_vs_physical", "online_tools", "systems_played", "favorite_genres", "active_groups", "group_size", "session_length", "player_challenges"],
+        "columns": ["play_currently", "frequency", "frameworks", "locations", "online_vs_physical", "online_tools", "systems_played", "favorite_genres", "active_groups", "group_size", "optimal_players_min", "optimal_players_max", "gm_less_game_opinion", "session_length", "player_challenges"],
         "questions": [
             q("play_currently", "האם את/ה משחק/ת כיום משחקי תפקידים שולחניים?", "radio", ["כן", "לא", "לעיתים רחוקות"]),
             q("frequency", "באיזו תדירות את/ה משחק/ת?", "radio", ["כמה פעמים בשבוע", "פעם בשבוע", "פעמיים בחודש", "פעם בחודש", "כמה פעמים בשנה", "כמעט לא"]),
             q("frameworks", "באילו מסגרות את/ה משחק/ת?", "checkbox", ["קבוצה פרטית", "חוג", "כנס", "חנות", "אונליין", "מועדון / מרכז קהילתי", "בית ספר / לימודים", "אחר"]),
             q("locations", "איפה המשחקים מתקיימים בדרך כלל?"),
-            q("online_vs_physical", "מה היחס בין אונליין לפרונטלי?", "radio", ["בעיקר פרונטלי", "בעיקר אונליין", "חצי־חצי", "משתנה מאוד"]),
-            q("online_tools", "באילו כלים אונליין את/ה משתמש/ת?", "checkbox", ["Discord", "Roll20", "Foundry VTT", "Zoom / Meet", "Owlbear Rodeo", "WhatsApp", "לא משחק/ת אונליין", "אחר"]),
+            q("online_vs_physical", "מה היחס בין אונליין לפרונטלי?", "radio", ["רק פרונטלי", "בעיקר פרונטלי", "חצי־חצי", "בעיקר אונליין", "רק אונליין", "משתנה מאוד"]),
+            q("online_tools", "באילו כלים אונליין את/ה משתמש/ת?", "checkbox", ["אני לא משחק/ת אונליין", "Discord", "Roll20", "Foundry VTT", "Zoom / Meet", "Owlbear Rodeo", "WhatsApp", "אחר"], required=True),
             q("systems_played", "באילו שיטות שיחקת?", "checkbox", ["D&D 5e", "Pathfinder", "חרבות וכשפים", "עולמות פראיים", "Call of Cthulhu", "Powered by the Apocalypse", "Blades in the Dark", "Fate", "שיטת בית", "אחר"]),
             q("favorite_genres", "ז׳אנרים מועדפים", "checkbox", ["פנטזיה", "מדע בדיוני", "אימה", "חקירה / מסתורין", "גיבורי־על", "היסטורי", "קומדיה", "דרמה", "פוסט־אפוקליפסה", "אחר"]),
             q("active_groups", "בכמה קבוצות פעילות את/ה משתתף/ת?", "radio", ["0", "1", "2", "3+", "משתנה"]),
-            q("group_size", "גודל קבוצה טיפוסי", "radio", ["2–3", "4–5", "6–7", "8+", "משתנה"]),
+            q("group_size", "אם יש לך או היו לך קבוצות משחק, מה מס׳ המשתתפים הממוצע בקבוצה?", "radio", ["2–3", "4–5", "6–7", "8+", "משתנה"]),
+            q("optimal_players", "מה מס׳ השחקנים האופטימלי למשחק שולחני?", "range", required=True, min_=1, max_=10, min_name="optimal_players_min", max_name="optimal_players_max"),
+            q(
+                "gm_less_game_opinion",
+                "מה דעתך על סוגת המשחקים ״משחק ללא מנחה״ (כגון: השנה השקטה, Follow)?",
+                "radio",
+                [
+                    "לא שמעתי על סוגה זו.",
+                    "שמעתי אך לא יצא לי להתנסות.",
+                    "שמעתי ואינני מעוניין/ת להתנסות.",
+                    "התנסיתי אך לא אהבתי.",
+                    "אהבתי אך לא יוצא לי לשחק את סוגה זו.",
+                    "אהבתי ושיחקתי כמה פעמים ו/או אני משחק/ת כרגע.",
+                ],
+                required=True,
+                help_text="בחרו את התשובה הרלוונטית ביותר עבורכם",
+            ),
             q("session_length", "אורך מפגש טיפוסי", "radio", ["עד שעה", "1–2 שעות", "2–4 שעות", "4+ שעות", "משתנה"]),
             q("player_challenges", "מה מקשה עליך כשחקן/ית?", "checkbox", ["תיאום זמנים", "מציאת קבוצה", "מציאת מנחה", "מרחק", "עלות", "חוסר ביטחון", "חוקים מורכבים", "אחר"]),
         ],
@@ -695,6 +732,14 @@ def read_part_data(db: Session, session_id: str, part: dict[str, Any]) -> dict[s
     data = {}
     for question in part["questions"]:
         name = question["name"]
+
+        if question["type"] == "range":
+            min_name = question["min_name"]
+            max_name = question["max_name"]
+            data[min_name] = "" if row.get(min_name) is None else row.get(min_name)
+            data[max_name] = "" if row.get(max_name) is None else row.get(max_name)
+            continue
+
         value = row.get(name)
         if question["type"] == "checkbox":
             data[name] = normalize_json_value(value)
@@ -729,7 +774,29 @@ def validate_form(form, part: dict[str, Any]) -> str | None:
     for question in part["questions"]:
         if not question.get("required"):
             continue
+
         name = question["name"]
+
+        if question["type"] == "range":
+            min_name = question["min_name"]
+            max_name = question["max_name"]
+            raw_min = str(form.get(min_name, "")).strip()
+            raw_max = str(form.get(max_name, "")).strip()
+
+            if not raw_min or not raw_max:
+                return f"נא לענות על השאלה: {question['label']}"
+
+            try:
+                min_value = int(raw_min)
+                max_value = int(raw_max)
+            except ValueError:
+                return f"נא לבחור טווח תקין בשאלה: {question['label']}"
+
+            if min_value > max_value:
+                return f"בשאלה ״{question['label']}״, המינימום לא יכול להיות גדול מהמקסימום."
+
+            continue
+
         if question["type"] == "checkbox":
             if len(form.getlist(name)) == 0:
                 return f"נא לענות על השאלה: {question['label']}"
@@ -753,6 +820,20 @@ def save_part(db: Session, session_id: str, part: dict[str, Any], form):
 
     question_map = {question["name"]: question for question in part["questions"]}
     for name, question in question_map.items():
+        if question["type"] == "range":
+            min_name = question["min_name"]
+            max_name = question["max_name"]
+
+            if min_name in columns:
+                raw_min = str(form.get(min_name, "")).strip()
+                data[min_name] = int(raw_min) if raw_min else None
+
+            if max_name in columns:
+                raw_max = str(form.get(max_name, "")).strip()
+                data[max_name] = int(raw_max) if raw_max else None
+
+            continue
+
         if name in columns:
             data[name] = form_value(form, question)
 
@@ -847,6 +928,9 @@ def save_part(db: Session, session_id: str, part: dict[str, Any], form):
 def ensure_schema_migrations():
     with engine.begin() as conn:
         conn.execute(text("ALTER TABLE survey_sessions ADD COLUMN IF NOT EXISTS submitted_at TIMESTAMP NULL"))
+        conn.execute(text("ALTER TABLE part3_tabletop ADD COLUMN IF NOT EXISTS optimal_players_min INTEGER NULL"))
+        conn.execute(text("ALTER TABLE part3_tabletop ADD COLUMN IF NOT EXISTS optimal_players_max INTEGER NULL"))
+        conn.execute(text("ALTER TABLE part3_tabletop ADD COLUMN IF NOT EXISTS gm_less_game_opinion TEXT NULL"))
 
 
 @app.on_event("startup")

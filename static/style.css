@@ -1573,3 +1573,30 @@ html[data-theme="contrast"] .legal-page a.btn-soft:visited {
     top: var(--nav-height);
   }
 }
+
+.range-choice-group {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.range-choice-field {
+  display: block;
+  padding: 14px;
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.range-choice-field > span {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--brand-dark);
+  font-weight: 900;
+}
+
+@media (max-width: 760px) {
+  .range-choice-group {
+    grid-template-columns: 1fr;
+  }
+}

@@ -40,6 +40,10 @@
             {% if q.required %}<span class="required">*</span>{% endif %}
           </label>
 
+          {% if q.help %}
+            <p class="field-help">{{ q.help }}</p>
+          {% endif %}
+
           {% if q.type == "text" or q.type == "email" or q.type == "date" %}
             <input type="{{ q.type }}" name="{{ q.name }}" value="{{ data.get(q.name, '') }}" {% if q.required %}required{% endif %}>
 
@@ -72,6 +76,29 @@
                   {{ opt }}
                 </label>
               {% endfor %}
+            </div>
+
+          {% elif q.type == "range" %}
+            <div class="range-choice-group">
+              <label class="range-choice-field">
+                <span>מינימום</span>
+                <select name="{{ q.min_name }}" {% if q.required %}required{% endif %}>
+                  <option value="">בחר/י</option>
+                  {% for i in range(q.min, q.max + 1) %}
+                    <option value="{{ i }}" {% if data.get(q.min_name)|string == i|string %}selected{% endif %}>{{ i }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+
+              <label class="range-choice-field">
+                <span>מקסימום</span>
+                <select name="{{ q.max_name }}" {% if q.required %}required{% endif %}>
+                  <option value="">בחר/י</option>
+                  {% for i in range(q.min, q.max + 1) %}
+                    <option value="{{ i }}" {% if data.get(q.max_name)|string == i|string %}selected{% endif %}>{{ i }}</option>
+                  {% endfor %}
+                </select>
+              </label>
             </div>
 
           {% elif q.type == "scale" %}
