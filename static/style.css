@@ -1600,3 +1600,18 @@ html[data-theme="contrast"] .legal-page a.btn-soft:visited {
     grid-template-columns: 1fr;
   }
 }
+
+/* Help text should visually belong to the question, not to the answer options */
+.form-group > label + .field-help {
+  margin-top: -4px;
+  margin-bottom: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.form-group > label + .field-help + .radio-group,
+.form-group > label + .field-help + .checkbox-group,
+.form-group > label + .field-help + .scale-group,
+.form-group > label + .field-help + .range-choice-group {
+  margin-top: 0;
+}
