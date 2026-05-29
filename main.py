@@ -93,8 +93,7 @@ PARTS: list[dict[str, Any]] = [
             "favorite_genres",
             "active_groups",
             "group_size",
-            "optimal_players_min",
-            "optimal_players_max",
+            "optimal_players",
             "gm_less_game_opinion",
             "session_length",
             "player_challenges",
@@ -110,7 +109,7 @@ PARTS: list[dict[str, Any]] = [
             q("favorite_genres", "ז׳אנרים מועדפים", "checkbox", ["פנטזיה", "מדע בדיוני", "אימה", "חקירה / מסתורין", "גיבורי־על", "היסטורי", "קומדיה", "דרמה", "פוסט־אפוקליפסה", "אחר"]),
             q("active_groups", "בכמה קבוצות פעילות את/ה משתתף/ת?", "radio", ["0", "1", "2", "3+", "משתנה"]),
             q("group_size", "אם יש לך או היו לך קבוצות משחק, מה מס׳ המשתתפים הממוצע בקבוצה?", "radio", ["2–3", "4–5", "6–7", "8+", "משתנה"]),
-            q("optimal_players", "מה מס׳ השחקנים האופטימלי למשחק שולחני?", "range", required=True, min_=2, max_=7, min_name="optimal_players_min", max_name="optimal_players_max"),
+            q("optimal_players", "מה מס׳ השחקנים האופטימלי למשחק שולחני?", "radio", ["2", "3", "4", "5", "6", "7"], required=True),
             q(
                 "gm_less_game_opinion",
                 "מה דעתך על סוגת המשחקים ״משחק ללא מנחה״ (כגון: השנה השקטה, Follow)?",
@@ -941,8 +940,7 @@ def save_part(db: Session, session_id: str, part: dict[str, Any], form):
 def ensure_schema_migrations():
     with engine.begin() as conn:
         conn.execute(text("ALTER TABLE survey_sessions ADD COLUMN IF NOT EXISTS submitted_at TIMESTAMP NULL"))
-        conn.execute(text("ALTER TABLE part3_tabletop ADD COLUMN IF NOT EXISTS optimal_players_min INTEGER NULL"))
-        conn.execute(text("ALTER TABLE part3_tabletop ADD COLUMN IF NOT EXISTS optimal_players_max INTEGER NULL"))
+        conn.execute(text("ALTER TABLE part3_tabletop ADD COLUMN IF NOT EXISTS optimal_players TEXT NULL"))
         conn.execute(text("ALTER TABLE part3_tabletop ADD COLUMN IF NOT EXISTS gm_less_game_opinion TEXT NULL"))
 
 
