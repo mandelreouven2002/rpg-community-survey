@@ -53,7 +53,6 @@ def q(
 
     return item
 
-
 PARTS: list[dict[str, Any]] = [
     {
         "key": "part1",
@@ -83,7 +82,23 @@ PARTS: list[dict[str, Any]] = [
         "key": "part3",
         "table": "part3_tabletop",
         "title": "חלק 3 — משחקים שולחניים",
-        "columns": ["play_currently", "frequency", "frameworks", "locations", "online_vs_physical", "online_tools", "systems_played", "favorite_genres", "active_groups", "group_size", "optimal_players_min", "optimal_players_max", "gm_less_game_opinion", "session_length", "player_challenges"],
+        "columns": [
+            "play_currently",
+            "frequency",
+            "frameworks",
+            "locations",
+            "online_vs_physical",
+            "online_tools",
+            "systems_played",
+            "favorite_genres",
+            "active_groups",
+            "group_size",
+            "optimal_players_min",
+            "optimal_players_max",
+            "gm_less_game_opinion",
+            "session_length",
+            "player_challenges",
+        ],
         "questions": [
             q("play_currently", "האם את/ה משחק/ת כיום משחקי תפקידים שולחניים?", "radio", ["כן", "לא", "לעיתים רחוקות"]),
             q("frequency", "באיזו תדירות את/ה משחק/ת?", "radio", ["כמה פעמים בשבוע", "פעם בשבוע", "פעמיים בחודש", "פעם בחודש", "כמה פעמים בשנה", "כמעט לא"]),
@@ -115,6 +130,7 @@ PARTS: list[dict[str, Any]] = [
             q("player_challenges", "מה מקשה עליך כשחקן/ית?", "checkbox", ["תיאום זמנים", "מציאת קבוצה", "מציאת מנחה", "מרחק", "עלות", "חוסר ביטחון", "חוקים מורכבים", "אחר"]),
         ],
     },
+
     {
         "key": "part4",
         "table": "part4_gms",
@@ -302,7 +318,6 @@ PART_KEYS = [part["key"] for part in PARTS]
 # Exceptions are privacy-sensitive, open details, or conditional follow-ups.
 OPTIONAL_QUESTIONS = {
     ("part1", "city"),
-    ("part3", "online_tools"),
     ("part4", "paid_services"),
     ("part4", "paid_price_range"),
     ("part4", "paid_by_who"),
@@ -747,8 +762,8 @@ def read_part_data(db: Session, session_id: str, part: dict[str, Any]) -> dict[s
             data[name] = ""
         else:
             data[name] = value
-    return data
 
+    return data
 
 def form_value(form, question: dict[str, Any]):
     name = question["name"]
@@ -803,8 +818,8 @@ def validate_form(form, part: dict[str, Any]) -> str | None:
         else:
             if not str(form.get(name, "")).strip():
                 return f"נא לענות על השאלה: {question['label']}"
-    return None
 
+    return None
 
 def save_part(db: Session, session_id: str, part: dict[str, Any], form):
     table = part["table"]
@@ -819,6 +834,7 @@ def save_part(db: Session, session_id: str, part: dict[str, Any], form):
         data["consent"] = True
 
     question_map = {question["name"]: question for question in part["questions"]}
+
     for name, question in question_map.items():
         if question["type"] == "range":
             min_name = question["min_name"]
@@ -868,7 +884,6 @@ def save_part(db: Session, session_id: str, part: dict[str, Any], form):
 
         survey_type = (sess.get("survey_type") if sess else None)
 
-        # The spec says route choice happens after part1.
         if not survey_type:
             db.execute(
                 text("""
@@ -922,8 +937,6 @@ def save_part(db: Session, session_id: str, part: dict[str, Any], form):
     )
 
     db.commit()
-
-
 
 def ensure_schema_migrations():
     with engine.begin() as conn:

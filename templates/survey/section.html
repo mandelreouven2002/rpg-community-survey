@@ -63,7 +63,7 @@
               {% for opt in q.options %}
                 <label>
                   <input type="radio" name="{{ q.name }}" value="{{ opt }}" {% if data.get(q.name) == opt %}checked{% endif %} {% if q.required %}required{% endif %}>
-                  {{ opt }}
+                  <span>{{ opt }}</span>
                 </label>
               {% endfor %}
             </div>
@@ -73,7 +73,7 @@
               {% for opt in q.options %}
                 <label>
                   <input type="checkbox" name="{{ q.name }}" value="{{ opt }}" {% if opt in data.get(q.name, []) %}checked{% endif %}>
-                  {{ opt }}
+                  <span>{{ opt }}</span>
                 </label>
               {% endfor %}
             </div>
