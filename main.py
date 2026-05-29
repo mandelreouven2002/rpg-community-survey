@@ -110,7 +110,7 @@ PARTS: list[dict[str, Any]] = [
             q("favorite_genres", "ז׳אנרים מועדפים", "checkbox", ["פנטזיה", "מדע בדיוני", "אימה", "חקירה / מסתורין", "גיבורי־על", "היסטורי", "קומדיה", "דרמה", "פוסט־אפוקליפסה", "אחר"]),
             q("active_groups", "בכמה קבוצות פעילות את/ה משתתף/ת?", "radio", ["0", "1", "2", "3+", "משתנה"]),
             q("group_size", "אם יש לך או היו לך קבוצות משחק, מה מס׳ המשתתפים הממוצע בקבוצה?", "radio", ["2–3", "4–5", "6–7", "8+", "משתנה"]),
-            q("optimal_players", "מה מס׳ השחקנים האופטימלי למשחק שולחני?", "range", required=True, min_=1, max_=10, min_name="optimal_players_min", max_name="optimal_players_max"),
+            q("optimal_players", "מה מס׳ השחקנים האופטימלי למשחק שולחני?", "range", required=True, min_=2, max_=7, min_name="optimal_players_min", max_name="optimal_players_max"),
             q(
                 "gm_less_game_opinion",
                 "מה דעתך על סוגת המשחקים ״משחק ללא מנחה״ (כגון: השנה השקטה, Follow)?",
@@ -126,7 +126,7 @@ PARTS: list[dict[str, Any]] = [
                 required=True,
                 help_text="בחרו את התשובה הרלוונטית ביותר עבורכם",
             ),
-            q("session_length", "אורך מפגש טיפוסי", "radio", ["עד שעה", "1–2 שעות", "2–4 שעות", "4+ שעות", "משתנה"]),
+            q("session_length", "אורך מפגש טיפוסי", "radio", ["עד שעה", "1–2 שעות", "3–4 שעות", "4+ שעות", "משתנה"]),
             q("player_challenges", "מה מקשה עליך כשחקן/ית?", "checkbox", ["תיאום זמנים", "מציאת קבוצה", "מציאת מנחה", "מרחק", "עלות", "חוסר ביטחון", "חוקים מורכבים", "אחר"]),
         ],
     },
